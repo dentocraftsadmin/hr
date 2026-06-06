@@ -324,7 +324,7 @@ th{letter-spacing:0.07em}
     <!-- Single numpad for both phone and PIN -->
     <div class="numpad" id="login-numpad"></div>
 
-    <div style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-top:8px;font-weight:500" id="login-hint">Use the keypad above to enter your number</div>
+    <div style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-top:8px;font-weight:500" id="login-hint">Tap a number to begin entering your mobile number.</div>
     <div class="mt-3" style="text-align:center">
       <button class="btn btn-ghost text-sm" id="goto-signup">New staff? Register here →</button>
     </div>
@@ -401,7 +401,7 @@ th{letter-spacing:0.07em}
         <button class="profile-dropdown-item" onclick="openSettings('profile');closeProfileDropdown()"><span class="pdi-icon">👤</span>My Profile</button>
         <button class="profile-dropdown-item" onclick="openSettings('appearance');closeProfileDropdown()"><span class="pdi-icon">🌙</span>Appearance</button>
         <div class="profile-dropdown-sep"></div>
-        <button class="profile-dropdown-item danger" id="staff-logout-btn" onclick="closeProfileDropdown()"><span class="pdi-icon">🚪</span>Logout</button>
+        <button class="profile-dropdown-item danger" id="staff-logout-btn" onclick="closeProfileDropdown();confirmLogout()"><span class="pdi-icon">🚪</span>Logout</button>
       </div>
     </div>
   </div>
@@ -468,7 +468,7 @@ th{letter-spacing:0.07em}
         <a href="#" data-section="calendar" onclick="switchAdminSection('calendar');return false"><span class="nav-icon">🗓️</span>Calendar</a>
         <a href="#" data-section="reports" onclick="switchAdminSection('reports');return false"><span class="nav-icon">📈</span>Reports</a>
         <a href="#" onclick="openSettings('app');return false"><span class="nav-icon">⚙️</span>Settings</a>
-        <a href="#" onclick="doLogout();return false" style="margin-top:auto;color:var(--danger)"><span class="nav-icon">🚪</span>Logout</a>
+        <a href="#" onclick="confirmLogout();return false" style="margin-top:auto;color:var(--danger)"><span class="nav-icon">🚪</span>Logout</a>
       </nav>
     </div>
     <div class="admin-main">
@@ -489,7 +489,7 @@ th{letter-spacing:0.07em}
             <button class="profile-dropdown-item" onclick="openSettings('data');closeProfileDropdown()"><span class="pdi-icon">📦</span>Data &amp; Export</button>
             <button class="profile-dropdown-item" onclick="openSettings('danger');closeProfileDropdown()"><span class="pdi-icon">⚠️</span>Danger Zone</button>
             <div class="profile-dropdown-sep"></div>
-            <button class="profile-dropdown-item danger" onclick="doLogout();closeProfileDropdown()"><span class="pdi-icon">🚪</span>Logout</button>
+            <button class="profile-dropdown-item danger" onclick="closeProfileDropdown();confirmLogout()"><span class="pdi-icon">🚪</span>Logout</button>
           </div>
         </div>
       </div>
@@ -641,8 +641,14 @@ th{letter-spacing:0.07em}
   <canvas id="camera-canvas"></canvas>
   <div class="camera-controls">
     <div style="width:48px"></div>
-    <button class="camera-btn" id="camera-capture">📷</button>
-    <button class="camera-close-btn" id="camera-switch">🔄</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <button class="camera-btn" id="camera-capture">📷</button>
+      <span style="font-size:11px;color:#aaa;font-weight:500">Capture</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <button class="camera-close-btn" id="camera-switch">🔄</button>
+      <span style="font-size:11px;color:#aaa;font-weight:500">Flip Camera</span>
+    </div>
   </div>
 </div>
 
@@ -721,34 +727,43 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 
 // In-memory cache (populated on startup, kept in sync on writes)
-const _cache={staff:[],punches:[],leaves:[],appSettings:{},shifts:[]};
+const _cache={staff:[],punches:[],leaves:[],appSettings:{},shifts:[],holidays:[]};
 
 // ---- Mappers (DB snake_case ↔ app camelCase) ----
-function _staffFromDB(r){return{id:r.id,name:r.name,phone:r.phone,department:r.department,pin:r.pin,workingHours:r.working_hours||6.5,score:r.score||0,scoreHistory:r.score_history||[],dob:r.dob,emergencyContact:r.emergency_contact,employmentType:r.employment_type,employeeId:r.employee_id,shiftId:r.shift_id,isLocked:r.is_locked||false,joiningDate:r.joining_date,createdAt:r.created_at};}
-function _staffToDB(s){return{id:s.id,name:s.name,phone:s.phone,department:s.department,pin:s.pin,working_hours:s.workingHours||6.5,score:s.score||0,score_history:s.scoreHistory||[],dob:s.dob||null,emergency_contact:s.emergencyContact||null,employment_type:s.employmentType||null,employee_id:s.employeeId||null,shift_id:s.shiftId||null,is_locked:s.isLocked||false,joining_date:s.joiningDate||null};}
+function _staffFromDB(r){return{id:r.id,name:r.name,phone:r.phone,department:r.department,pin:r.pin,workingHours:r.working_hours||6.5,score:r.score||0,scoreHistory:r.score_history||[],dob:r.dob,emergencyContact:r.emergency_contact,employmentType:r.employment_type,employeeId:r.employee_id,shiftId:r.shift_id,isLocked:r.is_locked||false,joiningDate:r.joining_date,createdAt:r.created_at,status:r.status||'active'};}
+function _staffToDB(s){return{id:s.id,name:s.name,phone:s.phone,department:s.department,pin:s.pin,working_hours:s.workingHours||6.5,score:s.score||0,score_history:s.scoreHistory||[],dob:s.dob||null,emergency_contact:s.emergencyContact||null,employment_type:s.employmentType||null,employee_id:s.employeeId||null,shift_id:s.shiftId||null,is_locked:s.isLocked||false,joining_date:s.joiningDate||null,status:s.status||'active'};}
 function _punchFromDB(r){return{id:r.id,staffId:r.staff_id,date:r.date,punchIn:r.punch_in,punchOut:r.punch_out,hoursWorked:r.hours_worked,dayType:r.day_type,isLate:r.is_late||false,photoIn:r.photo,photoOut:r.photo_out,locIn:r.location,locOut:r.location_out,latIn:r.lat,lngIn:r.lng,latOut:r.lat_out,lngOut:r.lng_out,isFlagged:r.is_flagged||false,flaggedOutOfOffice:r.flagged_out_of_office||false};}
 function _punchToDB(p){return{id:p.id,staff_id:p.staffId,date:p.date,punch_in:p.punchIn||null,punch_out:p.punchOut||null,hours_worked:p.hoursWorked||null,day_type:p.dayType||null,is_late:p.isLate||false,photo:p.photoIn||null,photo_out:p.photoOut||null,location:p.locIn||null,location_out:p.locOut||null,lat:p.latIn||null,lng:p.lngIn||null,lat_out:p.latOut||null,lng_out:p.lngOut||null,flagged_out_of_office:p.flaggedOutOfOffice||false,is_flagged:p.isFlagged||false};}
 function _leaveFromDB(r){return{id:r.id,staffId:r.staff_id,type:r.type,fromDate:r.from_date,toDate:r.to_date,reason:r.reason,status:r.status,appliedAt:r.applied_at};}
 function _leaveToDB(l){return{id:l.id,staff_id:l.staffId,type:l.type,from_date:l.fromDate,to_date:l.toDate,reason:l.reason,status:l.status};}
 function _shiftFromDB(r){return{id:r.id,name:r.name,start:r.start_time,end:r.end_time,days:r.days||[],color:r.color||'#1D9E75',isActive:r.is_active!==false,isDefault:r.is_default||false};}
 function _shiftToDB(s){return{id:s.id,name:s.name,start_time:s.start,end_time:s.end,days:s.days||[],color:s.color,is_active:s.isActive!==false,is_default:s.isDefault||false};}
+function _holidayFromDB(r){return{id:r.id,name:r.name,date:r.date};}
+function _holidayToDB(h){return{id:h.id,name:h.name,date:h.date};}
 
 // ---- Cache loaders ----
 async function loadCache(){
-  const[s,p,l,a,sh]=await Promise.all([
+  const[s,p,l,a,sh,hol]=await Promise.all([
     _sb.from('staff').select('*'),
     _sb.from('punches').select('*'),
     _sb.from('leaves').select('*'),
     _sb.from('app_settings').select('*').eq('id',1).maybeSingle(),
-    _sb.from('shifts').select('*')
+    _sb.from('shifts').select('*'),
+    _sb.from('holidays').select('*').catch(()=>({data:[]}))
   ]);
   _cache.staff=(s.data||[]).map(_staffFromDB);
   _cache.punches=(p.data||[]).map(_punchFromDB);
   _cache.leaves=(l.data||[]).map(_leaveFromDB);
   _cache.appSettings=a.data?.data||{officeLat:'',officeLng:'',officeRadius:200,workStartTime:'09:30',graceMinutes:15,fullDayHours:6.5,halfDayMin:4.5,halfDayMax:6.5,allowSelfRegister:true,requireLocation:false,maxCasualLeave:12,maxSickLeave:12,maxEarnedLeave:15,companyName:'CraftsHR',companyTagline:'Attendance System'};
   let shifts=(sh.data||[]).map(_shiftFromDB);
-  if(!shifts.length){shifts=[{id:'shift1',name:'General',start:'10:30',end:'19:30',days:[1,2,3,4,5,6],color:'#1D9E75',isActive:true,isDefault:true},{id:'shift2',name:'Evening',start:'12:00',end:'21:00',days:[1,2,3,4,5,6],color:'#2563eb',isActive:true,isDefault:false}];await _sb.from('shifts').upsert(shifts.map(_shiftToDB));}
+  if(!shifts.length){shifts=[
+    {id:'shift1',name:'Morning',start:'09:00',end:'18:00',days:[1,2,3,4,5,6],color:'#f59e0b',isActive:true,isDefault:false},
+    {id:'shift2',name:'Afternoon',start:'13:00',end:'22:00',days:[1,2,3,4,5,6],color:'#2563eb',isActive:true,isDefault:false},
+    {id:'shift3',name:'Night',start:'22:00',end:'07:00',days:[1,2,3,4,5,6],color:'#7c3aed',isActive:true,isDefault:false},
+    {id:'shift4',name:'General',start:'10:00',end:'19:00',days:[1,2,3,4,5,6],color:'#1D9E75',isActive:true,isDefault:true}
+  ];await _sb.from('shifts').upsert(shifts.map(_shiftToDB)).catch(()=>{});}
   _cache.shifts=shifts;
+  _cache.holidays=(hol.data||[]).map(_holidayFromDB);
 }
 
 // ---- Getters (synchronous, use cache) ----
@@ -758,7 +773,7 @@ function getLeaves(){return _cache.leaves;}
 function getSettings(){return _cache.appSettings;}
 function getAppSettings(){return _cache.appSettings;}
 function getShifts(){return _cache.shifts;}
-function getHolidays(){return[];}
+function getHolidays(){return _cache.holidays||[];}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 
 // ---- Setters (update cache + async sync to Supabase) ----
@@ -804,7 +819,16 @@ function setShifts(arr){
     if(arr.length)await _sb.from('shifts').upsert(arr.map(_shiftToDB));
   })().catch(e=>toast('Sync error: '+e.message,'error'));
 }
-function setHolidays(){}
+function setHolidays(arr){
+  const oldIds=new Set((_cache.holidays||[]).map(h=>h.id));
+  const newIds=new Set(arr.map(h=>h.id));
+  const deleted=[...oldIds].filter(id=>!newIds.has(id));
+  _cache.holidays=arr;
+  (async()=>{
+    for(const id of deleted)await _sb.from('holidays').delete().eq('id',id);
+    if(arr.length)await _sb.from('holidays').upsert(arr.map(_holidayToDB));
+  })().catch(e=>toast('Sync error: '+e.message,'error'));
+}
 
 // Session stays in localStorage (transient, per-device)
 function getSession(){try{return JSON.parse(localStorage.getItem('hrp_session'));}catch{return null;}}
@@ -875,16 +899,37 @@ function doLogin(phone,pin){
     loadAdminPanel();showPage('admin-app');return true;
   }
   const s=getStaff().find(x=>x.phone===phone&&x.pin===pin&&!x.isLocked);
-  if(s){setSession({staffId:s.id,role:'staff',loginAt:new Date().toISOString()});loadStaffDashboard(s);showPage('staff-app');return true;}
+  if(s){
+    if(s.status==='pending')return'pending';
+    if(s.status==='rejected')return'rejected';
+    setSession({staffId:s.id,role:'staff',loginAt:new Date().toISOString()});loadStaffDashboard(s);showPage('staff-app');return true;
+  }
   return false;
 }
 
-function doLogout(){clearSession();showPage('login-page');buildLoginNumpad();}
+function doLogout(){
+  if(clockInterval){clearInterval(clockInterval);clockInterval=null;}
+  clearSession();showPage('login-page');buildLoginNumpad();
+}
+
+function confirmLogout(){
+  const okBtn=document.getElementById('confirm-modal-ok');
+  document.querySelector('#confirm-modal .modal-header h3').textContent='Log out?';
+  document.getElementById('confirm-modal-body').innerHTML='<p style="color:var(--text-muted)">You will be signed out of CraftsHR.</p>';
+  okBtn.textContent='Log Out';
+  okBtn.className='btn btn-danger flex-1';
+  okBtn.onclick=()=>{closeModal('confirm-modal');doLogout();};
+  openModal('confirm-modal');
+}
 
 function checkSession(){
   const sess=getSession();if(!sess)return;
   if(sess.role==='admin'){loadAdminPanel();showPage('admin-app');}
-  else{const s=getStaff().find(x=>x.id===sess.staffId);if(s){loadStaffDashboard(s);showPage('staff-app');}else clearSession();}
+  else{
+    const s=getStaff().find(x=>x.id===sess.staffId);
+    if(s&&s.status&&s.status!=='active'){clearSession();return;}
+    if(s){loadStaffDashboard(s);showPage('staff-app');}else clearSession();
+  }
 }
 
 // ============================================================
@@ -916,10 +961,10 @@ function _loginUpdateDisplay(){
   if(_loginState==='pin'){
     pinGroup.classList.remove('hidden');
     document.getElementById('login-phone-display').style.borderColor='var(--border)';
-    document.getElementById('login-hint').textContent='Enter your 4-digit PIN';
+    document.getElementById('login-hint').textContent='Enter your 4-digit PIN.';
   } else {
     pinGroup.classList.add('hidden');
-    document.getElementById('login-hint').textContent='Use the keypad above to enter your number';
+    document.getElementById('login-hint').textContent='Tap a number to begin entering your mobile number.';
   }
   document.getElementById('login-phone-error').classList.add('hidden');
   document.getElementById('login-error').classList.add('hidden');
@@ -932,6 +977,15 @@ function _loginPressKey(k){
     } else if(_loginPhone.length<10){
       _loginPhone+=k;
       if(_loginPhone.length===10){
+        // Validate Indian mobile number
+        if(!/^[6-9]/.test(_loginPhone)){
+          const err=document.getElementById('login-phone-error');
+          err.textContent='Please enter a valid 10-digit mobile number.';
+          err.classList.remove('hidden');
+          _loginPhone='';
+          _loginUpdateDisplay();
+          return;
+        }
         // Auto-advance to PIN
         _loginState='pin';
         _loginPinVal='';
@@ -952,11 +1006,18 @@ function _loginPressKey(k){
         _loginUpdateDisplay();
         // Attempt login
         const result=doLogin(_loginPhone,_loginPinVal);
-        if(!result){
+        if(result!==true){
           const card=document.querySelector('.login-card');
           card.classList.add('shake');setTimeout(()=>card.classList.remove('shake'),400);
           const err=document.getElementById('login-error');
-          err.textContent='Incorrect phone or PIN. Try again.';err.classList.remove('hidden');
+          if(result==='pending'){
+            err.textContent='Your account is pending approval by the admin. Please contact your manager.';
+          }else if(result==='rejected'){
+            err.textContent='Your registration was not approved. Please contact your manager.';
+          }else{
+            err.textContent='Incorrect phone or PIN. Try again.';
+          }
+          err.classList.remove('hidden');
           _loginPinVal='';
           _loginUpdateDisplay();
         }
@@ -995,7 +1056,6 @@ function buildLoginNumpad(){
 
 document.getElementById('goto-signup').addEventListener('click',()=>{showPage('signup-page');renderSignupShifts();});
 document.getElementById('back-to-login').addEventListener('click',()=>showPage('login-page'));
-document.getElementById('staff-logout-btn').addEventListener('click',doLogout);
 
 // ============================================================
 // SIGNUP
@@ -1010,7 +1070,7 @@ function renderSignupShifts(){
       <div class="sc-dot" style="background:${sh.color}"></div>
       <div>
         <div class="sc-name">${sh.name}</div>
-        <div class="sc-time">${sh.start} – ${sh.end} &nbsp;·&nbsp; ${sh.days.map(d=>DAY_NAMES[d]).join(', ')}</div>
+        <div class="sc-time">${fmt12hr(sh.start)} – ${fmt12hr(sh.end)} &nbsp;·&nbsp; ${sh.days.map(d=>DAY_NAMES[d]).join(', ')}</div>
       </div>
     </div>
   `).join('');
@@ -1037,7 +1097,7 @@ document.getElementById('signup-btn').addEventListener('click',()=>{
   function hideErr(id){document.getElementById(id).classList.add('hidden');}
   ['su-name-err','su-phone-err','su-dept-err','su-shift-err','su-pin-err'].forEach(hideErr);
   if(!name||name.length<2)showErr('su-name-err','Enter full name');
-  if(!/^\d{10}$/.test(phone))showErr('su-phone-err','Enter valid 10-digit number');
+  if(!/^[6-9]\d{9}$/.test(phone))showErr('su-phone-err','Please enter a valid 10-digit mobile number.');
   if(!dept)showErr('su-dept-err','Select a department');
   if(!shiftId)showErr('su-shift-err','Select a shift');
   if(pin.length!==4)showErr('su-pin-err','Please enter a 4-digit PIN using the keypad');
@@ -1046,9 +1106,9 @@ document.getElementById('signup-btn').addEventListener('click',()=>{
   if(getStaff().find(s=>s.phone===phone)){showErr('su-phone-err','Already registered');return;}
   const shift=getShifts().find(s=>s.id===shiftId);
   const arr=getStaff();
-  arr.push({id:genId(),name,phone,department:dept,pin,shiftId,workingHours:shift?parseFloat(shift.end.split(':')[0]+'.'+shift.end.split(':')[1])-parseFloat(shift.start.split(':')[0]+'.'+shift.start.split(':')[1]):9,dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[]});
+  arr.push({id:genId(),name,phone,department:dept,pin,shiftId,workingHours:shift?parseFloat(shift.end.split(':')[0]+'.'+shift.end.split(':')[1])-parseFloat(shift.start.split(':')[0]+'.'+shift.start.split(':')[1]):9,dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[],status:'pending'});
   setStaff(arr);window._suPin='';document.getElementById('su-numpad')._reset?.();
-  toast('Registration successful! Please login.','success');showPage('login-page');
+  toast('Registration submitted! Please wait for admin approval.','success');showPage('login-page');
 });
 
 // ============================================================
@@ -1065,7 +1125,7 @@ function requestAppPermissions(){
 function loadStaffDashboard(staff){
   document.getElementById('staff-header-name').textContent=staff.name;
   document.getElementById('staff-header-dept').textContent=staff.department;
-  document.getElementById('staff-avatar').textContent=staff.name.charAt(0).toUpperCase();
+  document.getElementById('staff-avatar').textContent=getInitials(staff.name);
   const n2=document.getElementById('staff-header-name2');if(n2)n2.textContent=staff.name.split(' ')[0];
   document.getElementById('dash-name').textContent=`Hi, ${staff.name.split(' ')[0]}! 👋`;
   loadAndApplyPrefs();
@@ -1109,6 +1169,8 @@ function refreshTodayPunch(staffId){
 
 function fmtTime(iso){if(!iso)return'—';return new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}
+function fmt12hr(t){if(!t)return'';const[h,m]=t.split(':').map(Number);const ampm=h>=12?'PM':'AM';const h12=h%12||12;return`${h12}:${String(m).padStart(2,'0')} ${ampm}`;}
+function getInitials(name){const p=name.trim().split(/\s+/);return((p[0]?.[0]||'')+(p.length>1?p[p.length-1]?.[0]||'':'')).toUpperCase()||name.charAt(0).toUpperCase();}
 
 document.getElementById('punch-in-btn').addEventListener('click',()=>startPunch('in'));
 document.getElementById('punch-out-btn').addEventListener('click',()=>startPunch('out'));
@@ -1119,17 +1181,32 @@ function startPunch(type){
   _checkLocGate();
 }
 
-function _checkLocGate(){
+async function _checkLocGate(){
   if(!navigator.geolocation){
     _showLocGate('unsupported');return;
   }
-  // Show spinner in gate while we probe
+  // Pre-check camera permission state (detects "Allow Once" expiry)
+  let camState='granted';
+  if(navigator.permissions){
+    try{const cp=await navigator.permissions.query({name:'camera'});camState=cp.state;}catch(e){}
+  }
   _showLocGate('checking');
   navigator.geolocation.getCurrentPosition(
     ()=>{
-      // Location granted — close gate and proceed to camera
       _hideLocGate();
-      if(!localStorage.getItem('hrp_perms_ok')){showPermissionRationale();}else{openCamera();}
+      if(camState==='denied'){
+        const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+        document.getElementById('loc-gate-icon').textContent='📷';
+        document.getElementById('loc-gate-title').textContent='Camera Access Denied';
+        document.getElementById('loc-gate-body').innerHTML='You previously denied camera access. Please enable Camera and Location in your phone\'s Settings app.';
+        document.getElementById('loc-gate-settings').href=isIOS?'app-settings:':'#';
+        document.getElementById('loc-gate-settings').textContent='⚙️ Open Settings';
+        document.getElementById('loc-gate-settings').style.display='block';
+        document.getElementById('loc-gate-retry').style.display='block';
+        document.getElementById('loc-gate').classList.add('active');
+        return;
+      }
+      if(camState==='prompt'||!localStorage.getItem('hrp_perms_ok')){showPermissionRationale();}else{openCamera();}
     },
     err=>{
       if(err.code===1){_showLocGate('denied');}else{_showLocGate('unavailable');}
@@ -1424,6 +1501,7 @@ function renderStaffHolidays(){
 function renderStaffAttTable(staffId){
   const punches=getPunches().filter(p=>p.staffId===staffId);
   const tbody=document.getElementById('staff-att-tbody');
+  if(!punches.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:#888">No attendance records in the last 30 days.</td></tr>';return;}
   const last30=[];
   for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);last30.push(d.toISOString().split('T')[0]);}
   tbody.innerHTML=last30.map(date=>{
@@ -1641,8 +1719,11 @@ function viewStaffDetail(staffId){
 }
 
 function confirmDeleteStaff(id,name){
+  document.querySelector('#confirm-modal .modal-header h3').textContent='Confirm Action';
   document.getElementById('confirm-modal-body').textContent=`Delete ${name}? All their attendance and leave records will also be removed.`;
-  document.getElementById('confirm-modal-ok').onclick=()=>{deleteStaff(id);closeModal('confirm-modal');};
+  const okBtn=document.getElementById('confirm-modal-ok');
+  okBtn.textContent='Delete';okBtn.className='btn btn-danger flex-1';
+  okBtn.onclick=()=>{deleteStaff(id);closeModal('confirm-modal');};
   openModal('confirm-modal');
 }
 
@@ -2181,19 +2262,43 @@ function deleteShift(id){if(!confirm('Delete this shift?'))return;setShifts(getS
 // ---- Staff Mgmt ----
 function buildStaffMgmtSection(){
   const staff=getStaff();
+  const pending=staff.filter(s=>s.status==='pending');
+  const active=staff.filter(s=>!s.status||s.status==='active');
+  const pendingHTML=pending.length?`
+    <h4 style="color:var(--warning);margin-bottom:8px">⏳ Pending Approval (${pending.length})</h4>
+    <div class="att-table-wrap mb-4">
+      <table><thead><tr><th>Name</th><th>Phone</th><th class="hide-mobile">Dept</th><th>Actions</th></tr></thead>
+      <tbody>${pending.map(s=>`<tr style="background:#fff8e1">
+        <td><span class="fw-600">${s.name}</span> <span class="badge badge-pending" style="font-size:0.65rem">Pending</span></td>
+        <td class="text-sm text-muted">${s.phone}</td><td class="hide-mobile text-sm">${s.department}</td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-primary text-sm" style="padding:5px 10px;font-size:0.8rem" onclick="approveStaff('${s.id}')">✓ Approve</button>
+          <button class="btn btn-danger text-sm" style="padding:5px 10px;font-size:0.8rem" onclick="rejectStaff('${s.id}')">✗ Reject</button>
+        </div></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`:''
   return`<h3>Staff Management</h3>
-    <p class="text-sm text-muted mb-3">${staff.length} staff registered</p>
+    ${pendingHTML}
+    <h4 style="margin-bottom:8px">Active Staff (${active.length})</h4>
     <div class="att-table-wrap">
       <table><thead><tr><th>Name</th><th>Phone</th><th class="hide-mobile">Dept</th><th>Actions</th></tr></thead>
-      <tbody>${staff.map(s=>`<tr>
+      <tbody>${active.map(s=>`<tr>
         <td>${s.name}${s.isLocked?'<span class="badge badge-absent ml-1" style="font-size:0.65rem">Locked</span>':''}</td>
         <td class="text-sm text-muted">${s.phone}</td><td class="hide-mobile text-sm">${s.department}</td>
         <td>
           <button class="btn btn-ghost text-sm" onclick="toggleStaffLock('${s.id}')">${s.isLocked?'🔓':'🔒'}</button>
           <button class="btn btn-ghost text-sm text-danger" onclick="deleteStaff('${s.id}')">🗑️</button>
         </td>
-      </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No staff registered</td></tr>'}</tbody>
+      </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No active staff</td></tr>'}</tbody>
     </table></div>`;
+}
+function approveStaff(id){
+  const arr=getStaff(),s=arr.find(x=>x.id===id);if(!s)return;
+  s.status='active';setStaff(arr);toast(`${s.name} approved!`,'success');renderSettingsSection('staffmgmt');
+}
+function rejectStaff(id){
+  const arr=getStaff(),s=arr.find(x=>x.id===id);if(!s)return;
+  s.status='rejected';setStaff(arr);toast(`${s.name} rejected.`,'info');renderSettingsSection('staffmgmt');
 }
 function toggleStaffLock(id){const arr=getStaff(),s=arr.find(x=>x.id===id);if(s){s.isLocked=!s.isLocked;setStaff(arr);}toast(s.isLocked?'Staff locked':'Staff unlocked','success');renderSettingsSection('staffmgmt');}
 
