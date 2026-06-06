@@ -769,8 +769,10 @@ function buildNumpad(containerId,displayPrefix,onComplete){
   function onKey(e){
     const page=container.closest('.page');
     if(!page||!page.classList.contains('active'))return;
+    const tag=document.activeElement?.tagName;
+    if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
     if(e.key>='0'&&e.key<='9'&&pin.length<4){pin+=e.key;updateDots();if(pin.length===4&&onComplete)onComplete(pin,()=>{pin='';updateDots();});}
-    else if(e.key==='Backspace'){pin=pin.slice(0,-1);updateDots();}
+    else if(e.key==='Backspace'){e.preventDefault();pin=pin.slice(0,-1);updateDots();}
   }
   document.addEventListener('keydown',onKey);
   container._destroy=()=>document.removeEventListener('keydown',onKey);
