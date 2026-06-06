@@ -368,6 +368,7 @@ th{letter-spacing:0.07em}
     <div class="form-group">
       <label>Date of Birth</label>
       <input type="date" id="su-dob" class="form-input">
+      <div class="field-error hidden" id="su-dob-err"></div>
     </div>
     <div class="form-group">
       <label>Choose 4-digit PIN</label>
@@ -1095,11 +1096,12 @@ document.getElementById('signup-btn').addEventListener('click',()=>{
   let valid=true;
   function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.classList.remove('hidden');valid=false;}
   function hideErr(id){document.getElementById(id).classList.add('hidden');}
-  ['su-name-err','su-phone-err','su-dept-err','su-shift-err','su-pin-err'].forEach(hideErr);
+  ['su-name-err','su-phone-err','su-dept-err','su-shift-err','su-dob-err','su-pin-err'].forEach(hideErr);
   if(!name||name.length<2)showErr('su-name-err','Enter full name');
   if(!/^[6-9]\d{9}$/.test(phone))showErr('su-phone-err','Please enter a valid 10-digit mobile number.');
   if(!dept)showErr('su-dept-err','Select a department');
   if(!shiftId)showErr('su-shift-err','Select a shift');
+  if(!dob)showErr('su-dob-err','Date of birth is required');
   if(pin.length!==4)showErr('su-pin-err','Please enter a 4-digit PIN using the keypad');
   if(!valid)return;
   if(phone===ADMIN_PHONE){showErr('su-phone-err','This number is reserved');return;}
