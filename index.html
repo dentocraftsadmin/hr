@@ -591,6 +591,27 @@ th{letter-spacing:0.07em}
   </div>
 </div>
 
+<!-- Permission Rationale (shown once before first punch) -->
+<div id="perm-rationale" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:8500;padding:24px">
+<style>#perm-rationale.active{display:flex!important;align-items:center;justify-content:center}</style>
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center">
+    <div style="font-size:3rem;margin-bottom:12px">📍📷</div>
+    <div style="font-weight:800;font-size:1.15rem;margin-bottom:10px;color:#1a1a2e">Allow Camera & Location</div>
+    <div style="font-size:0.9rem;color:#6b7280;line-height:1.6;margin-bottom:20px">
+      This app needs your <b>Camera</b> and <b>Location</b> to record your attendance.<br><br>
+      When your phone asks permission, please select:<br><br>
+      <div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:8px;color:#166534;font-weight:700;font-size:0.95rem">
+        ✅ "Always Allow" or<br>"Allow While Using"
+      </div>
+      <div style="color:#ef4444;font-weight:600">❌ Do NOT tap "Allow Once" or "Don't Allow"</div><br>
+      This way you only need to approve once — never again.
+    </div>
+    <button id="perm-rationale-ok" style="width:100%;padding:14px;background:#1D9E75;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700">
+      Got it — Continue
+    </button>
+  </div>
+</div>
+
 <!-- Camera -->
 <div id="camera-container">
   <div style="padding:16px;background:#111;color:#fff;display:flex;align-items:center;gap:12px">
@@ -1076,8 +1097,23 @@ document.getElementById('punch-out-btn').addEventListener('click',()=>startPunch
 function startPunch(type){
   punchType=type;
   document.getElementById('camera-title').textContent=type==='in'?'Punch In — Take Selfie':'Punch Out — Take Selfie';
-  openCamera();
+  // Show one-time permission rationale if permissions haven't been granted yet
+  if(!localStorage.getItem('hrp_perms_ok')){
+    showPermissionRationale();
+  } else {
+    openCamera();
+  }
 }
+
+function showPermissionRationale(){
+  document.getElementById('perm-rationale').classList.add('active');
+}
+
+document.getElementById('perm-rationale-ok').addEventListener('click',()=>{
+  localStorage.setItem('hrp_perms_ok','1');
+  document.getElementById('perm-rationale').classList.remove('active');
+  openCamera();
+});
 
 // ============================================================
 // CAMERA
