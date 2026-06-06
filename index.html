@@ -1784,16 +1784,20 @@ function renderCalendar(){
   const leaves=getLeaves().filter(l=>l.status==='Approved');
   const holidays=getHolidays();
   const staff=getStaff(),today=todayStr();
+  const mmStr=String(month+1).padStart(2,'0');
   let cells='';
   for(let i=0;i<firstDay;i++)cells+=`<div class="cal-cell other-month"></div>`;
   for(let d=1;d<=daysInMonth;d++){
-    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dateStr=`${year}-${mmStr}-${String(d).padStart(2,'0')}`;
     const isToday=dateStr===today;
     const dayLeaves=leaves.filter(l=>l.fromDate<=dateStr&&l.toDate>=dateStr);
     const holiday=holidays.find(h=>h.date===dateStr);
+    const ddStr=String(d).padStart(2,'0');
+    const bdays=staff.filter(s=>s.dob&&s.dob.slice(5)===`${mmStr}-${ddStr}`);
     cells+=`<div class="cal-cell ${isToday?'today':''}${holiday?' is-holiday':''}" onclick="showCalDayDetail('${dateStr}')">
       <div class="cal-day-num">${d}</div>
       ${holiday?`<span class="cal-chip holiday-chip" title="${holiday.name}">🎉 ${holiday.name}</span>`:''}
+      ${bdays.map(s=>`<span class="cal-chip" style="background:#c44dff" title="${s.name}'s Birthday">🎂 ${s.name.split(' ')[0]}</span>`).join('')}
       ${dayLeaves.slice(0,2).map(l=>{const s=staff.find(x=>x.id===l.staffId)||{name:'?'};return`<span class="cal-chip" title="${s.name}">${s.name.split(' ')[0]}</span>`;}).join('')}
       ${dayLeaves.length>2?`<span class="cal-chip" style="background:var(--text-muted)">+${dayLeaves.length-2}</span>`:''}
     </div>`;
@@ -1809,11 +1813,14 @@ function showCalDayDetail(dateStr){
   const leaves=getLeaves().filter(l=>l.status==='Approved'&&l.fromDate<=dateStr&&l.toDate>=dateStr);
   const holiday=getHolidays().find(h=>h.date===dateStr);
   const staff=getStaff();
+  const mmdd=dateStr.slice(5);
+  const bdays=staff.filter(s=>s.dob&&s.dob.slice(5)===mmdd);
   const detail=document.getElementById('cal-day-detail');detail.classList.remove('hidden');
   let html=`<h4 class="fw-700 mb-2">${fmtDate(dateStr)}</h4>`;
   if(holiday)html+=`<div class="card mb-2" style="border-color:#1565c0;background:#e3f2fd"><div class="fw-600">🎉 ${holiday.name}</div><div class="text-sm text-muted">Paid Holiday</div></div>`;
+  if(bdays.length)html+=`<div class="card mb-2" style="border-color:#c44dff;background:#f9f0ff">`+bdays.map(s=>`<div class="flex items-center gap-2 p-2" style="border-bottom:1px solid #e9d5ff"><div class="avatar" style="background:#f3e8ff;color:#c44dff">🎂</div><div><div class="fw-600 text-sm">${s.name}</div><div class="text-xs text-muted">${s.department} · Birthday</div></div></div>`).join('')+`</div>`;
   if(leaves.length)html+=leaves.map(l=>{const s=staff.find(x=>x.id===l.staffId)||{name:'Unknown',department:''};return`<div class="flex items-center gap-2 p-2" style="border-bottom:1px solid var(--border)"><div class="avatar">${s.name.charAt(0)}</div><div><div class="fw-600 text-sm">${s.name}</div><div class="text-xs text-muted">${s.department} · ${l.type} Leave</div></div></div>`;}).join('');
-  if(!holiday&&!leaves.length)html+='<div class="text-sm text-muted" style="text-align:center;padding:16px">No leaves or holidays</div>';
+  if(!holiday&&!bdays.length&&!leaves.length)html+='<div class="text-sm text-muted" style="text-align:center;padding:16px">No leaves, birthdays or holidays</div>';
   detail.innerHTML=html;
 }
 
