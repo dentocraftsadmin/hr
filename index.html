@@ -229,6 +229,13 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .birthday-card-mini .bday-info{font-size:0.75rem;opacity:0.85;margin-top:2px}
 .birthday-today-banner{background:linear-gradient(90deg,#ff6b9d,#c44dff,#ff6b9d);background-size:200%;animation:bdaySlide 3s linear infinite;color:#fff;text-align:center;padding:10px 16px;font-weight:700;font-size:0.9rem;border-radius:8px;margin-bottom:8px}
 @keyframes bdaySlide{0%{background-position:0%}100%{background-position:200%}}
+/* Shift selector cards */
+.shift-select-card{border:2px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all var(--transition);background:var(--card)}
+.shift-select-card:hover{border-color:var(--primary);background:var(--primary-light)}
+.shift-select-card.selected{border-color:var(--primary);background:var(--primary-light)}
+.shift-select-card .sc-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.shift-select-card .sc-name{font-weight:700;font-size:0.95rem}
+.shift-select-card .sc-time{font-size:0.8rem;color:var(--text-muted);margin-top:2px}
 .report-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
 .report-filter-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
 .report-filter-group label{font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
@@ -319,11 +326,10 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
       <div class="field-error hidden" id="su-dept-err"></div>
     </div>
     <div class="form-group">
-      <label>Working Hours</label>
-      <select id="su-hours" class="form-input">
-        <option value="6.5" selected>6.5 Hours (Standard)</option>
-        <option value="8">8 Hours</option><option value="9">9 Hours</option><option value="10">10 Hours</option>
-      </select>
+      <label>Select Shift</label>
+      <div id="su-shift-list" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      <input type="hidden" id="su-shift-id">
+      <div class="field-error hidden" id="su-shift-err"></div>
     </div>
     <div class="form-group">
       <label>Date of Birth <span class="text-muted">(for birthday reminders)</span></label>
@@ -758,6 +764,16 @@ function buildNumpad(containerId,displayPrefix,onComplete){
     container.appendChild(btn);
   });
   container._reset=()=>{pin='';updateDots();};
+
+  // Keyboard support — only active when this numpad's page is visible
+  function onKey(e){
+    const page=container.closest('.page');
+    if(!page||!page.classList.contains('active'))return;
+    if(e.key>='0'&&e.key<='9'&&pin.length<4){pin+=e.key;updateDots();if(pin.length===4&&onComplete)onComplete(pin,()=>{pin='';updateDots();});}
+    else if(e.key==='Backspace'){pin=pin.slice(0,-1);updateDots();}
+  }
+  document.addEventListener('keydown',onKey);
+  container._destroy=()=>document.removeEventListener('keydown',onKey);
 }
 
 // ============================================================
@@ -804,33 +820,60 @@ document.getElementById('login-btn').addEventListener('click',()=>{
   if(!/^\d{10}$/.test(phone)){err.textContent='Enter valid 10-digit number';err.classList.remove('hidden');return;}
   err.classList.add('hidden');toast('Enter your PIN','info');
 });
-document.getElementById('goto-signup').addEventListener('click',()=>showPage('signup-page'));
+document.getElementById('goto-signup').addEventListener('click',()=>{showPage('signup-page');renderSignupShifts();});
 document.getElementById('back-to-login').addEventListener('click',()=>showPage('login-page'));
 document.getElementById('staff-logout-btn').addEventListener('click',doLogout);
 
 // ============================================================
 // SIGNUP
 // ============================================================
+function renderSignupShifts(){
+  const wrap=document.getElementById('su-shift-list');
+  if(!wrap)return;
+  const shifts=getShifts().filter(s=>s.isActive);
+  const DAY_NAMES=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  wrap.innerHTML=shifts.map(sh=>`
+    <div class="shift-select-card" onclick="selectSignupShift('${sh.id}',this)">
+      <div class="sc-dot" style="background:${sh.color}"></div>
+      <div>
+        <div class="sc-name">${sh.name}</div>
+        <div class="sc-time">${sh.start} – ${sh.end} &nbsp;·&nbsp; ${sh.days.map(d=>DAY_NAMES[d]).join(', ')}</div>
+      </div>
+    </div>
+  `).join('');
+  // Auto-select default shift
+  const def=shifts.find(s=>s.isDefault)||shifts[0];
+  if(def){document.getElementById('su-shift-id').value=def.id;wrap.querySelector('.shift-select-card')?.classList.add('selected');}
+}
+
+function selectSignupShift(id,el){
+  document.getElementById('su-shift-id').value=id;
+  document.querySelectorAll('#su-shift-list .shift-select-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
 document.getElementById('signup-btn').addEventListener('click',()=>{
   const name=document.getElementById('su-name').value.trim();
   const phone=document.getElementById('su-phone').value.trim();
   const dept=document.getElementById('su-dept').value;
-  const hours=document.getElementById('su-hours').value;
+  const shiftId=document.getElementById('su-shift-id').value;
   const dob=document.getElementById('su-dob').value;
   const pin=window._suPin||'';
   let valid=true;
   function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.classList.remove('hidden');valid=false;}
   function hideErr(id){document.getElementById(id).classList.add('hidden');}
-  ['su-name-err','su-phone-err','su-dept-err','su-pin-err'].forEach(hideErr);
+  ['su-name-err','su-phone-err','su-dept-err','su-shift-err','su-pin-err'].forEach(hideErr);
   if(!name||name.length<2)showErr('su-name-err','Enter full name');
   if(!/^\d{10}$/.test(phone))showErr('su-phone-err','Enter valid 10-digit number');
   if(!dept)showErr('su-dept-err','Select a department');
+  if(!shiftId)showErr('su-shift-err','Select a shift');
   if(pin.length!==4)showErr('su-pin-err','Please enter a 4-digit PIN using the keypad');
   if(!valid)return;
   if(phone===ADMIN_PHONE){showErr('su-phone-err','This number is reserved');return;}
   if(getStaff().find(s=>s.phone===phone)){showErr('su-phone-err','Already registered');return;}
+  const shift=getShifts().find(s=>s.id===shiftId);
   const arr=getStaff();
-  arr.push({id:genId(),name,phone,department:dept,pin,workingHours:parseFloat(hours),dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[]});
+  arr.push({id:genId(),name,phone,department:dept,pin,shiftId,workingHours:shift?parseFloat(shift.end.split(':')[0]+'.'+shift.end.split(':')[1])-parseFloat(shift.start.split(':')[0]+'.'+shift.start.split(':')[1]):9,dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[]});
   setStaff(arr);window._suPin='';document.getElementById('su-numpad')._reset?.();
   toast('Registration successful! Please login.','success');showPage('login-page');
 });
