@@ -1222,10 +1222,38 @@ function startLocationFetch(){
         });
     },
     (err)=>{
-      const msg=err.code===1
-        ?'Permission denied. On iPhone: Settings → Safari → Location → Allow. On Android: Settings → Apps → Browser → Permissions → Location. Then tap Retry below.'
-        :'Could not get your location. Make sure GPS / Location Services is turned on, then tap Retry below.';
-      _showLocCard(msg,true);
+      if(err.code===1){
+        // Permission denied — retry won't help, user must go to Settings
+        document.getElementById('preview-loc-status').style.display='none';
+        document.getElementById('preview-loc-text').textContent='Location permission denied.';
+        document.getElementById('preview-loc-icon').textContent='⚠️';
+        document.getElementById('preview-loc-map-link').style.display='none';
+        document.getElementById('preview-loc-retry').style.display='none';
+        // Show settings button
+        const card=document.getElementById('preview-loc-card');
+        let settingsBtn=document.getElementById('preview-loc-settings');
+        if(!settingsBtn){
+          settingsBtn=document.createElement('a');
+          settingsBtn.id='preview-loc-settings';
+          settingsBtn.style.cssText='display:block;margin-top:8px;background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:700;width:100%;text-align:center;text-decoration:none;box-sizing:border-box';
+          card.appendChild(settingsBtn);
+        }
+        const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+        if(isIOS){
+          settingsBtn.href='app-settings:';
+          settingsBtn.textContent='⚙️ Open iPhone Settings';
+        } else {
+          settingsBtn.href='#';
+          settingsBtn.textContent='⚙️ Enable Location in Browser Settings';
+        }
+        settingsBtn.style.display='block';
+        card.style.display='block';
+        const confirmBtn=document.getElementById('preview-confirm');
+        confirmBtn.disabled=true;confirmBtn.style.opacity='0.5';confirmBtn.textContent='Location required';
+      } else {
+        // Timeout or unavailable — retry may help
+        _showLocCard('Could not get your location. Make sure GPS is on, then tap Retry.',true);
+      }
     },
     {enableHighAccuracy:true,timeout:15000}
   );
