@@ -914,13 +914,7 @@ function doLogout(){
 }
 
 function confirmLogout(){
-  const okBtn=document.getElementById('confirm-modal-ok');
-  document.querySelector('#confirm-modal .modal-header h3').textContent='Log out?';
-  document.getElementById('confirm-modal-body').innerHTML='<p style="color:var(--text-muted)">You will be signed out of CraftsHR.</p>';
-  okBtn.textContent='Log Out';
-  okBtn.className='btn btn-danger flex-1';
-  okBtn.onclick=()=>{closeModal('confirm-modal');doLogout();};
-  openModal('confirm-modal');
+  showConfirm('Log out?','You will be signed out of CraftsHR.','Log Out',doLogout);
 }
 
 function checkSession(){
@@ -1720,13 +1714,17 @@ function viewStaffDetail(staffId){
   openModal('detail-modal');
 }
 
-function confirmDeleteStaff(id,name){
-  document.querySelector('#confirm-modal .modal-header h3').textContent='Confirm Action';
-  document.getElementById('confirm-modal-body').textContent=`Delete ${name}? All their attendance and leave records will also be removed.`;
+function showConfirm(title,body,okText,onOk){
+  document.querySelector('#confirm-modal .modal-header h3').textContent=title;
+  document.getElementById('confirm-modal-body').innerHTML=`<p style="color:var(--text-muted)">${body}</p>`;
   const okBtn=document.getElementById('confirm-modal-ok');
-  okBtn.textContent='Delete';okBtn.className='btn btn-danger flex-1';
-  okBtn.onclick=()=>{deleteStaff(id);closeModal('confirm-modal');};
+  okBtn.textContent=okText;okBtn.className='btn btn-danger flex-1';
+  okBtn.onclick=()=>{closeModal('confirm-modal');onOk();};
   openModal('confirm-modal');
+}
+
+function confirmDeleteStaff(id,name){
+  showConfirm('Delete Staff?',`Delete <b>${name}</b>? All their attendance and leave records will also be removed.`,'Delete',()=>deleteStaff(id));
 }
 
 function deleteStaff(id){
@@ -2200,8 +2198,8 @@ function addHoliday(){
 }
 
 function deleteHoliday(id){
-  setHolidays(getHolidays().filter(h=>h.id!==id));
-  toast('Holiday removed','success');renderSettingsSection('holidays');
+  const h=getHolidays().find(x=>x.id===id);
+  showConfirm('Remove Holiday?',`Remove <b>${h?.name||'this holiday'}</b> from the paid holidays list?`,'Remove',()=>{setHolidays(getHolidays().filter(x=>x.id!==id));toast('Holiday removed','success');renderSettingsSection('holidays');});
 }
 
 // ---- Shifts ----
@@ -2266,7 +2264,10 @@ function saveShiftForm(existingId){
   else shifts.push({id:genId(),name,start,end,color,days,isDefault,isActive});
   setShifts(shifts);toast('Shift saved','success');renderSettingsSection('shifts');
 }
-function deleteShift(id){if(!confirm('Delete this shift?'))return;setShifts(getShifts().filter(s=>s.id!==id));renderSettingsSection('shifts');}
+function deleteShift(id){
+  const sh=getShifts().find(s=>s.id===id);
+  showConfirm('Delete Shift?',`Delete shift <b>${sh?.name||''}</b>? Staff assigned to this shift will be unaffected.`,'Delete',()=>{setShifts(getShifts().filter(s=>s.id!==id));renderSettingsSection('shifts');});
+}
 
 // ---- Staff Mgmt ----
 function buildStaffMgmtSection(){
@@ -2296,7 +2297,7 @@ function buildStaffMgmtSection(){
         <td class="text-sm text-muted">${s.phone}</td><td class="hide-mobile text-sm">${s.department}</td>
         <td>
           <button class="btn btn-ghost text-sm" onclick="toggleStaffLock('${s.id}')">${s.isLocked?'🔓':'🔒'}</button>
-          <button class="btn btn-ghost text-sm text-danger" onclick="deleteStaff('${s.id}')">🗑️</button>
+          <button class="btn btn-ghost text-sm text-danger" onclick="confirmDeleteStaff('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑️</button>
         </td>
       </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No active staff</td></tr>'}</tbody>
     </table></div>`;
@@ -2307,7 +2308,7 @@ function approveStaff(id){
 }
 function rejectStaff(id){
   const arr=getStaff(),s=arr.find(x=>x.id===id);if(!s)return;
-  s.status='rejected';setStaff(arr);toast(`${s.name} rejected.`,'info');renderSettingsSection('staffmgmt');
+  showConfirm('Reject Registration?',`Reject <b>${s.name}</b>? They will not be able to log in.`,'Reject',()=>{s.status='rejected';setStaff(arr);toast(`${s.name} rejected.`,'info');renderSettingsSection('staffmgmt');});
 }
 function toggleStaffLock(id){const arr=getStaff(),s=arr.find(x=>x.id===id);if(s){s.isLocked=!s.isLocked;setStaff(arr);}toast(s.isLocked?'Staff locked':'Staff unlocked','success');renderSettingsSection('staffmgmt');}
 
@@ -2367,9 +2368,9 @@ function buildDangerSection(){
     <div class="danger-zone mb-3"><h4>Clear Leave Requests</h4><p class="text-sm text-muted mb-3">Delete all leave applications.</p><button class="btn btn-danger" onclick="clearLeaveData()">Clear All Leave Requests</button></div>
     <div class="danger-zone"><h4>Factory Reset</h4><p class="text-sm text-muted mb-3">Delete ALL data. Cannot be undone.</p><button class="btn btn-danger" onclick="factoryReset()">Factory Reset</button></div>`;
 }
-function clearAttendanceData(){if(!confirm('Delete ALL punch records?'))return;setPunches([]);toast('All punch records cleared','success');}
-function clearLeaveData(){if(!confirm('Delete ALL leave requests?'))return;setLeaves([]);toast('All leave requests cleared','success');}
-function factoryReset(){const code=prompt('Type RESET to confirm:');if(code!=='RESET'){toast('Reset cancelled','info');return;}['hrp_staff','hrp_punches','hrp_leaves','hrp_holidays','hrp_settings','hrp_app_settings','hrp_shifts',ADMIN_PIN_KEY].forEach(k=>localStorage.removeItem(k));toast('Factory reset complete','success');closeSettings();doLogout();}
+function clearAttendanceData(){showConfirm('Clear Attendance Data?','This will permanently delete <b>all punch records</b>. This cannot be undone.','Clear All',()=>{setPunches([]);toast('All punch records cleared','success');});}
+function clearLeaveData(){showConfirm('Clear Leave Requests?','This will permanently delete <b>all leave applications</b>. This cannot be undone.','Clear All',()=>{setLeaves([]);toast('All leave requests cleared','success');});}
+function factoryReset(){showConfirm('Factory Reset?','This will delete <b>ALL data</b> — staff, attendance, leaves, holidays and settings. This <b>cannot be undone</b>.','Reset Everything',()=>{['hrp_staff','hrp_punches','hrp_leaves','hrp_holidays','hrp_settings','hrp_app_settings','hrp_shifts',ADMIN_PIN_KEY].forEach(k=>localStorage.removeItem(k));toast('Factory reset complete','success');closeSettings();doLogout();});}
 
 // ============================================================
 // THEME / PREFERENCES
