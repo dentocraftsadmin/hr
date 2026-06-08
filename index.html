@@ -2461,11 +2461,12 @@ function buildAppSection(){
       <button class="btn btn-outline" style="flex:1" onclick="detectAdminLocation()">📍 Detect My Location</button>
     </div>
     <div class="form-group mb-3">
-      <label>Or search by address</label>
+      <label>Or search by area / street / landmark</label>
       <div class="flex gap-2">
-        <input class="form-input" id="as-addr-search" placeholder="e.g. DentoCrafts, Mumbai" style="flex:1">
+        <input class="form-input" id="as-addr-search" placeholder="e.g. Bandra West Mumbai" style="flex:1">
         <button class="btn btn-primary" style="white-space:nowrap" onclick="searchOfficeAddress()">Search</button>
       </div>
+      <div id="as-addr-results" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:10px;overflow:hidden"></div>
     </div>
     <div id="as-location-preview" style="display:${(s.officeLat&&s.officeLng)?'block':'none'};background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
       <div style="font-weight:600;color:var(--text);margin-bottom:2px">📍 Office Address</div>
@@ -2535,18 +2536,32 @@ function detectAdminLocation(){
 
 async function searchOfficeAddress(){
   const q=document.getElementById('as-addr-search')?.value?.trim();
-  if(!q){toast('Enter an address to search','error');return;}
+  if(!q){toast('Enter an area or street to search','error');return;}
   const btn=document.querySelector('[onclick="searchOfficeAddress()"]');
   if(btn){btn.disabled=true;btn.textContent='Searching...';}
+  const resultsEl=document.getElementById('as-addr-results');
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`);
     const d=await r.json();
-    if(!d||!d.length){toast('Address not found — try a more specific search','error');if(btn){btn.disabled=false;btn.textContent='Search';}return;}
-    const lat=parseFloat(d[0].lat).toFixed(6),lng=parseFloat(d[0].lon).toFixed(6),addr=d[0].display_name;
-    const s=getAppSettings();s.officeLat=lat;s.officeLng=lng;s.officeAddress=addr;setAppSettings(s);
-    renderSettingsSection('app');
-    toast(`Office set: ${addr.slice(0,60)}...`,'success');
-  }catch(e){toast('Search failed — check your connection','error');if(btn){btn.disabled=false;btn.textContent='Search';}}
+    if(btn){btn.disabled=false;btn.textContent='Search';}
+    if(!d||!d.length){
+      if(resultsEl){resultsEl.style.display='block';resultsEl.innerHTML=`<div style="padding:12px;color:var(--text-muted);font-size:0.85rem">No results — try searching your area or street name (e.g. "Andheri East Mumbai")</div>`;}
+      return;
+    }
+    if(resultsEl){
+      resultsEl.style.display='block';
+      resultsEl.innerHTML=d.map((item,i)=>{
+        const name=item.display_name;
+        const short=name.length>80?name.slice(0,80)+'…':name;
+        return`<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.85rem;${i===d.length-1?'border-bottom:none':''}" onclick="pickOfficeLocation('${item.lat}','${item.lon}',${JSON.stringify(name).replace(/'/g,"\\'")})">${short}</div>`;
+      }).join('');
+    }
+  }catch(e){if(btn){btn.disabled=false;btn.textContent='Search';}toast('Search failed — check your connection','error');}
+}
+function pickOfficeLocation(lat,lng,addr){
+  const s=getAppSettings();s.officeLat=parseFloat(lat).toFixed(6);s.officeLng=parseFloat(lng).toFixed(6);s.officeAddress=addr;setAppSettings(s);
+  renderSettingsSection('app');
+  toast('Office location saved!','success');
 }
 
 // ---- Holidays Settings ----
