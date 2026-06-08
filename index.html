@@ -766,17 +766,35 @@ function _holidayToDB(h){return{id:h.id,name:h.name,date:h.date};}
 
 // ---- Schema capability flags ----
 let _dbHasStatusCol=false;
+let _punchLoadedFrom=null;
+let _storageReady=false;
 async function detectSchemaFlags(){
   const {error}=await _sb.from('staff').select('status').limit(1);
   _dbHasStatusCol=!error;
+}
+async function checkStorageReady(){
+  try{const{error}=await _sb.storage.from('punch-photos').list('',{limit:1});_storageReady=!error;}catch(e){_storageReady=false;}
+}
+async function uploadPunchPhoto(base64DataUrl,staffId,type,dateStr){
+  if(!base64DataUrl||!_storageReady)return base64DataUrl;
+  try{
+    const res=await fetch(base64DataUrl);const blob=await res.blob();
+    const path=`${staffId}/${dateStr}/${type}_${Date.now()}.jpg`;
+    const{error}=await _sb.storage.from('punch-photos').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+    if(error)return base64DataUrl;
+    const{data}=_sb.storage.from('punch-photos').getPublicUrl(path);
+    return data.publicUrl;
+  }catch(e){return base64DataUrl;}
 }
 
 // ---- Cache loaders ----
 async function loadCache(){
   await detectSchemaFlags();
+  await checkStorageReady();
+  const _cutoff=(()=>{const d=new Date();d.setDate(d.getDate()-60);return d.toISOString().slice(0,10);})();
   const[s,p,l,a,sh,hol]=await Promise.all([
     Promise.resolve(_sb.from('staff').select('*')).catch(()=>({data:[]})),
-    Promise.resolve(_sb.from('punches').select('*')).catch(()=>({data:[]})),
+    Promise.resolve(_sb.from('punches').select('*').gte('date',_cutoff)).catch(()=>({data:[]})),
     Promise.resolve(_sb.from('leaves').select('*')).catch(()=>({data:[]})),
     Promise.resolve(_sb.from('app_settings').select('*').eq('id',1).maybeSingle()).catch(()=>({data:null})),
     Promise.resolve(_sb.from('shifts').select('*')).catch(()=>({data:[]})),
@@ -795,6 +813,21 @@ async function loadCache(){
   ];await _sb.from('shifts').upsert(shifts.map(_shiftToDB)).catch(()=>{});}
   _cache.shifts=shifts;
   _cache.holidays=(hol.data||[]).map(_holidayFromDB);
+  _punchLoadedFrom=_cutoff;
+}
+
+async function ensurePunchesFor(fromDateStr){
+  if(!fromDateStr)return;
+  if(_punchLoadedFrom&&fromDateStr>=_punchLoadedFrom)return;
+  const loadTo=_punchLoadedFrom||todayStr();
+  toast('Loading historical records…','info',3000);
+  const{data}=await Promise.resolve(_sb.from('punches').select('*').gte('date',fromDateStr).lt('date',loadTo)).catch(()=>({data:[]}));
+  if(data&&data.length){
+    const existing=new Set(_cache.punches.map(p=>p.id));
+    const newOnes=data.map(_punchFromDB).filter(p=>!existing.has(p.id));
+    _cache.punches=[..._cache.punches,...newOnes];
+  }
+  _punchLoadedFrom=fromDateStr;
 }
 
 // ---- Getters (synchronous, use cache) ----
@@ -1440,52 +1473,51 @@ function startLocationFetch(){
   );
 }
 
-function submitPunch(){
+async function submitPunch(){
   const sess=getSession();if(!sess)return;
-  // Hard block — location coordinates are mandatory
   if(!capturedLat||!capturedLng){
     toast('Location is required to punch. Please enable GPS and retake.','error',4000);
     return;
   }
-  const today=todayStr(),now=new Date().toISOString(),settings=getSettings();
-  const appS=getAppSettings();
+  const confirmBtn=document.getElementById('preview-confirm');
+  confirmBtn.disabled=true;confirmBtn.style.opacity='0.5';
+  confirmBtn.textContent=capturedPhoto&&_storageReady?'Uploading photo…':'Saving…';
+
+  const today=todayStr(),now=new Date().toISOString(),settings=getSettings(),appS=getAppSettings();
 
   let flaggedOutOfOffice=false;
   if(settings.officeLat&&capturedLat){
     const dist=haversine(parseFloat(settings.officeLat),parseFloat(settings.officeLng),capturedLat,capturedLng);
     if(dist>parseFloat(settings.officeRadius||200))flaggedOutOfOffice=true;
   }
-
-  // Late check with grace period
   let isLate=false;
   if(punchType==='in'&&settings.workStartTime){
-    const [h,m]=settings.workStartTime.split(':').map(Number);
-    const graceMins=parseInt(appS.graceMinutes)||0;
-    const startMins=h*60+m+graceMins;
-    const now2=new Date();
-    if(now2.getHours()*60+now2.getMinutes()>startMins)isLate=true;
+    const[h,m]=settings.workStartTime.split(':').map(Number);
+    const startMins=h*60+m+(parseInt(appS.graceMinutes)||0);
+    const now2=new Date();if(now2.getHours()*60+now2.getMinutes()>startMins)isLate=true;
   }
 
+  const photoUrl=await uploadPunchPhoto(capturedPhoto,sess.staffId,punchType,today);
   const punches=getPunches();
   if(punchType==='in'){
-    const rec={id:genId(),staffId:sess.staffId,date:today,punchIn:now,punchOut:null,photoIn:capturedPhoto,photoOut:null,locIn:capturedLocation||'',locOut:'',latIn:capturedLat,lngIn:capturedLng,latOut:null,lngOut:null,hoursWorked:null,dayType:null,isLate,flaggedOutOfOffice};
+    const rec={id:genId(),staffId:sess.staffId,date:today,punchIn:now,punchOut:null,photoIn:photoUrl,photoOut:null,locIn:capturedLocation||'',locOut:'',latIn:capturedLat,lngIn:capturedLng,latOut:null,lngOut:null,hoursWorked:null,dayType:null,isLate,flaggedOutOfOffice};
     punches.push(rec);setPunches(punches);
     document.getElementById('preview-container').classList.remove('active');
     toast(`Punched in at ${fmtTime(now)}${flaggedOutOfOffice?' ⚠️ Outside office zone':''}`,flaggedOutOfOffice?'warning':'success');
     refreshTodayPunch(sess.staffId);
   }else{
     const idx=punches.findIndex(p=>p.staffId===sess.staffId&&p.date===today&&p.punchIn&&!p.punchOut);
-    if(idx===-1){toast('No punch-in record found','error');return;}
+    if(idx===-1){confirmBtn.disabled=false;confirmBtn.style.opacity='1';confirmBtn.textContent='✓ Confirm';toast('No punch-in record found','error');return;}
     const hrs=(new Date(now)-new Date(punches[idx].punchIn))/3600000;
-    const fullHours=parseFloat(appS.fullDayHours)||6.5;
-    const halfMin=parseFloat(appS.halfDayMin)||4.5;
+    const fullHours=parseFloat(appS.fullDayHours)||6.5,halfMin=parseFloat(appS.halfDayMin)||4.5;
     const dayType=hrs>=fullHours?'Full Day':hrs>=halfMin?'Half Day':'Short Day';
-    punches[idx]={...punches[idx],punchOut:now,photoOut:capturedPhoto,locOut:capturedLocation||'',latOut:capturedLat,lngOut:capturedLng,hoursWorked:hrs,dayType,flaggedOutOfOffice:punches[idx].flaggedOutOfOffice||flaggedOutOfOffice};
+    punches[idx]={...punches[idx],punchOut:now,photoOut:photoUrl,locOut:capturedLocation||'',latOut:capturedLat,lngOut:capturedLng,hoursWorked:hrs,dayType,flaggedOutOfOffice:punches[idx].flaggedOutOfOffice||flaggedOutOfOffice};
     setPunches(punches);
     document.getElementById('preview-container').classList.remove('active');
     toast(`Punched out — ${hrs.toFixed(2)} hrs — ${dayType}${flaggedOutOfOffice?' ⚠️':''}`, 'success');
     refreshTodayPunch(sess.staffId);renderStaffAttTable(sess.staffId);
   }
+  confirmBtn.disabled=false;confirmBtn.style.opacity='1';confirmBtn.textContent='✓ Confirm';
 }
 
 function haversine(lat1,lon1,lat2,lon2){
@@ -1937,10 +1969,11 @@ function getWorkingDays(from,to){
   return count;
 }
 
-function generateReport(){
+async function generateReport(){
   const from=document.getElementById('report-from').value,to=document.getElementById('report-to').value;
   if(!from||!to){toast('Select both From and To month','error');return;}
   if(from>to){toast('"From" must be before "To"','error');return;}
+  await ensurePunchesFor(from+'-01');
   reportFromMonth=from;reportToMonth=to;
   const months=getMonthsInRange(from,to);
   const workingDays=getWorkingDays(from,to);
@@ -2437,18 +2470,53 @@ function buildDataSection(){
     <div class="card mb-3">
       <div class="text-sm text-muted mb-3">${staff.length} staff · ${punches.length} punch records · ${leaves.length} leave requests · ${holidays.length} holidays</div>
       <button class="btn btn-outline w-full mb-2" onclick="exportAllData()">⬇ Export All Data (JSON)</button>
-      <button class="btn btn-outline w-full" onclick="exportCSVFromSettings()">⬇ Export Attendance CSV (All Time)</button>
+      <button class="btn btn-outline w-full mb-2" onclick="exportCSVFromSettings()">⬇ Export Attendance CSV (All Time)</button>
+      <button class="btn btn-outline w-full" onclick="exportPhotosZip()">⬇ Export Photos as ZIP</button>
     </div>`;
 }
-function exportAllData(){
-  const data={staff:getStaff(),punches:getPunches(),leaves:getLeaves(),holidays:getHolidays(),settings:getAppSettings(),shifts:getShifts(),exportedAt:new Date().toISOString()};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`HR_Export_${todayStr()}.json`;a.click();
+async function _loadAllPunchesDB(){
+  const{data}=await Promise.resolve(_sb.from('punches').select('*')).catch(()=>({data:[]}));
+  return(data||[]).map(_punchFromDB);
 }
-function exportCSVFromSettings(){
-  const punches=getPunches(),staff=getStaff(),staffMap=Object.fromEntries(staff.map(s=>[s.id,s]));
-  let csv='Name,Phone,Department,Date,Punch In,Punch Out,Hours,Day Type,Late\n';
-  punches.forEach(p=>{const s=staffMap[p.staffId];if(!s)return;csv+=`"${s.name}","${s.phone}","${s.department}","${p.date}","${p.punchIn?fmtTime(p.punchIn):''}","${p.punchOut?fmtTime(p.punchOut):''}","${p.hoursWorked?.toFixed(2)||''}","${p.dayType||''}","${p.isLate?'Yes':'No'}"\n`;});
+async function exportAllData(){
+  toast('Preparing export…','info',4000);
+  const allPunches=await _loadAllPunchesDB();
+  const data={staff:getStaff(),punches:allPunches,leaves:getLeaves(),holidays:getHolidays(),settings:getAppSettings(),shifts:getShifts(),exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`HR_Export_${todayStr()}.json`;a.click();
+  toast('Export ready','success');
+}
+async function exportCSVFromSettings(){
+  toast('Preparing CSV…','info',4000);
+  const punches=await _loadAllPunchesDB(),staff=getStaff(),staffMap=Object.fromEntries(staff.map(s=>[s.id,s]));
+  let csv='Name,Phone,Department,Date,Punch In,Punch Out,Hours,Day Type,Late,Photo In URL,Photo Out URL\n';
+  punches.forEach(p=>{const s=staffMap[p.staffId];if(!s)return;csv+=`"${s.name}","${s.phone}","${s.department}","${p.date}","${p.punchIn?fmtTime(p.punchIn):''}","${p.punchOut?fmtTime(p.punchOut):''}","${p.hoursWorked?.toFixed(2)||''}","${p.dayType||''}","${p.isLate?'Yes':'No'}","${p.photoIn&&p.photoIn.startsWith('http')?p.photoIn:''}","${p.photoOut&&p.photoOut.startsWith('http')?p.photoOut:''}"\n`;});
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='HR_Attendance_AllTime.csv';a.click();
+  toast('CSV ready','success');
+}
+async function exportPhotosZip(){
+  toast('Loading photo list…','info',4000);
+  const allPunches=await _loadAllPunchesDB();
+  const withPhotos=allPunches.filter(p=>(p.photoIn&&p.photoIn.startsWith('http'))||(p.photoOut&&p.photoOut.startsWith('http')));
+  if(!withPhotos.length){toast('No photos found — photos may predate cloud storage','info',4000);return;}
+  if(!window.JSZip){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}).catch(()=>{toast('Could not load ZIP library — check internet','error');});
+    if(!window.JSZip)return;
+  }
+  toast(`Downloading photos for ${withPhotos.length} records…`,'info',30000);
+  const zip=new JSZip();
+  const staffMap=Object.fromEntries(getStaff().map(s=>[s.id,s]));
+  let count=0;
+  for(const p of withPhotos){
+    const sName=((staffMap[p.staffId]?.name)||p.staffId).replace(/[^a-z0-9]/gi,'_');
+    if(p.photoIn&&p.photoIn.startsWith('http')){try{const r=await fetch(p.photoIn);const b=await r.blob();zip.file(`${sName}/${p.date}_punch_in.jpg`,b);count++;}catch(e){}}
+    if(p.photoOut&&p.photoOut.startsWith('http')){try{const r=await fetch(p.photoOut);const b=await r.blob();zip.file(`${sName}/${p.date}_punch_out.jpg`,b);count++;}catch(e){}}
+  }
+  if(!count){toast('No photos could be downloaded','error');return;}
+  toast(`Zipping ${count} photos…`,'info',10000);
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:1}});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`HR_Photos_${todayStr()}.zip`;a.click();
+  toast(`Downloaded ${count} photos!`,'success');
 }
 
 // ---- Danger ----
