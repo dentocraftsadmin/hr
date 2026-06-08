@@ -794,9 +794,9 @@ const _cache={staff:[],punches:[],leaves:[],appSettings:{},shifts:[],holidays:[]
 function _staffFromDB(r){return{id:r.id,name:r.name,phone:r.phone,department:r.department,pin:r.pin,workingHours:r.working_hours||6.5,score:r.score||0,scoreHistory:r.score_history||[],dob:r.dob,emergencyContact:r.emergency_contact,employmentType:r.employment_type,employeeId:r.employee_id,shiftId:r.shift_id,isLocked:r.is_locked||false,joiningDate:r.joining_date,createdAt:r.created_at,status:r.status||'active'};}
 function _staffToDB(s){const o={id:s.id,name:s.name,phone:s.phone,department:s.department,pin:s.pin,working_hours:s.workingHours||6.5,score:s.score||0,score_history:s.scoreHistory||[],dob:s.dob||null,emergency_contact:s.emergencyContact||null,employment_type:s.employmentType||null,employee_id:s.employeeId||null,shift_id:s.shiftId||null,is_locked:s.isLocked||false,joining_date:s.joiningDate||null};if(_dbHasStatusCol)o.status=s.status||'active';return o;}
 function _punchFromDB(r){return{id:r.id,staffId:r.staff_id,date:r.date,punchIn:r.punch_in,punchOut:r.punch_out,hoursWorked:r.hours_worked,dayType:r.day_type,isLate:r.is_late||false,photoIn:r.photo,photoOut:r.photo_out,locIn:r.location,locOut:r.location_out,latIn:r.lat,lngIn:r.lng,latOut:r.lat_out,lngOut:r.lng_out,isFlagged:r.is_flagged||false,flaggedOutOfOffice:r.flagged_out_of_office||false};}
-function _punchToDB(p){return{id:p.id,staff_id:p.staffId,date:p.date,punch_in:p.punchIn||null,punch_out:p.punchOut||null,hours_worked:p.hoursWorked||null,day_type:p.dayType||null,is_late:p.isLate||false,photo:p.photoIn||null,photo_out:p.photoOut||null,location:p.locIn||null,location_out:p.locOut||null,lat:p.latIn||null,lng:p.lngIn||null,lat_out:p.latOut||null,lng_out:p.lngOut||null,flagged_out_of_office:p.flaggedOutOfOffice||false,is_flagged:p.isFlagged||false};}
+function _punchToDB(p){const o={id:p.id,staff_id:p.staffId,date:p.date,punch_in:p.punchIn||null,punch_out:p.punchOut||null,hours_worked:p.hoursWorked||null,day_type:p.dayType||null,is_late:p.isLate||false,photo:p.photoIn||null,photo_out:p.photoOut||null,location:p.locIn||null,location_out:p.locOut||null,lat:p.latIn||null,lng:p.lngIn||null,lat_out:p.latOut||null,lng_out:p.lngOut||null};if(_dbHasPunchFlagCols){o.flagged_out_of_office=p.flaggedOutOfOffice||false;o.is_flagged=p.isFlagged||false;}return o;}
 function _leaveFromDB(r){return{id:r.id,staffId:r.staff_id,type:r.type,fromDate:r.from_date,toDate:r.to_date,reason:r.reason,status:r.status,appliedAt:r.applied_at,adminNote:r.admin_note||'',attachment:r.attachment||''};}
-function _leaveToDB(l){return{id:l.id,staff_id:l.staffId,type:l.type,from_date:l.fromDate,to_date:l.toDate,reason:l.reason,status:l.status,applied_at:l.appliedAt||new Date().toISOString(),admin_note:l.adminNote||'',attachment:l.attachment||''};}
+function _leaveToDB(l){const o={id:l.id,staff_id:l.staffId,type:l.type,from_date:l.fromDate,to_date:l.toDate,reason:l.reason,status:l.status,applied_at:l.appliedAt||new Date().toISOString()};if(_dbHasLeaveExtraCols){o.admin_note=l.adminNote||'';o.attachment=l.attachment||'';}return o;}
 function _shiftFromDB(r){return{id:r.id,name:r.name,start:r.start_time,end:r.end_time,days:r.days||[],color:r.color||'#1D9E75',isActive:r.is_active!==false,isDefault:r.is_default||false};}
 function _shiftToDB(s){return{id:s.id,name:s.name,start_time:s.start,end_time:s.end,days:s.days||[],color:s.color,is_active:s.isActive!==false,is_default:s.isDefault||false};}
 function _holidayFromDB(r){return{id:r.id,name:r.name,date:r.date};}
@@ -804,11 +804,19 @@ function _holidayToDB(h){return{id:h.id,name:h.name,date:h.date};}
 
 // ---- Schema capability flags ----
 let _dbHasStatusCol=false;
+let _dbHasPunchFlagCols=false;
+let _dbHasLeaveExtraCols=false;
 let _punchLoadedFrom=null;
 let _storageReady=false;
 async function detectSchemaFlags(){
-  const {error}=await _sb.from('staff').select('status').limit(1);
-  _dbHasStatusCol=!error;
+  const[sr,pr,lr]=await Promise.all([
+    Promise.resolve(_sb.from('staff').select('status').limit(1)).catch(()=>({error:true})),
+    Promise.resolve(_sb.from('punches').select('flagged_out_of_office').limit(1)).catch(()=>({error:true})),
+    Promise.resolve(_sb.from('leaves').select('admin_note').limit(1)).catch(()=>({error:true})),
+  ]);
+  _dbHasStatusCol=!sr.error;
+  _dbHasPunchFlagCols=!pr.error;
+  _dbHasLeaveExtraCols=!lr.error;
 }
 async function checkStorageReady(){
   try{const{error}=await _sb.storage.from('punch-photos').list('',{limit:1});_storageReady=!error;}catch(e){_storageReady=false;}
