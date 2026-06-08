@@ -2502,10 +2502,8 @@ function detectAdminLocation(){
   toast('Detecting location...','info');
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6);
-    saveAppSetting('officeLat',lat);saveAppSetting('officeLng',lng);
-    const latEl=document.getElementById('as-lat'),lngEl=document.getElementById('as-lng');
-    if(latEl)latEl.value=lat;
-    if(lngEl)lngEl.value=lng;
+    const s=getAppSettings();s.officeLat=lat;s.officeLng=lng;setAppSettings(s);
+    renderSettingsSection('app');
     toast('Location detected!','success');
     try{
       const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -2514,8 +2512,11 @@ function detectAdminLocation(){
       const preview=document.getElementById('as-location-preview');
       const addrEl=document.getElementById('as-location-address');
       if(preview&&addrEl){addrEl.textContent=addr;preview.style.display='block';}
-    }catch(e){/* address lookup failed silently */}
-  },()=>toast('Could not get location','error'),{enableHighAccuracy:true,timeout:10000});
+    }catch(e){}
+  },err=>{
+    const msg={1:'Location permission denied — please allow location access in your browser settings',2:'Location unavailable',3:'Location request timed out'}[err.code]||'Could not get location';
+    toast(msg,'error');
+  },{enableHighAccuracy:true,timeout:10000});
 }
 
 // ---- Holidays Settings ----
