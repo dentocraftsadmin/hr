@@ -758,7 +758,7 @@ function _staffToDB(s){const o={id:s.id,name:s.name,phone:s.phone,department:s.d
 function _punchFromDB(r){return{id:r.id,staffId:r.staff_id,date:r.date,punchIn:r.punch_in,punchOut:r.punch_out,hoursWorked:r.hours_worked,dayType:r.day_type,isLate:r.is_late||false,photoIn:r.photo,photoOut:r.photo_out,locIn:r.location,locOut:r.location_out,latIn:r.lat,lngIn:r.lng,latOut:r.lat_out,lngOut:r.lng_out,isFlagged:r.is_flagged||false,flaggedOutOfOffice:r.flagged_out_of_office||false};}
 function _punchToDB(p){return{id:p.id,staff_id:p.staffId,date:p.date,punch_in:p.punchIn||null,punch_out:p.punchOut||null,hours_worked:p.hoursWorked||null,day_type:p.dayType||null,is_late:p.isLate||false,photo:p.photoIn||null,photo_out:p.photoOut||null,location:p.locIn||null,location_out:p.locOut||null,lat:p.latIn||null,lng:p.lngIn||null,lat_out:p.latOut||null,lng_out:p.lngOut||null,flagged_out_of_office:p.flaggedOutOfOffice||false,is_flagged:p.isFlagged||false};}
 function _leaveFromDB(r){return{id:r.id,staffId:r.staff_id,type:r.type,fromDate:r.from_date,toDate:r.to_date,reason:r.reason,status:r.status,appliedAt:r.applied_at};}
-function _leaveToDB(l){return{id:l.id,staff_id:l.staffId,type:l.type,from_date:l.fromDate,to_date:l.toDate,reason:l.reason,status:l.status};}
+function _leaveToDB(l){return{id:l.id,staff_id:l.staffId,type:l.type,from_date:l.fromDate,to_date:l.toDate,reason:l.reason,status:l.status,applied_at:l.appliedAt||new Date().toISOString()};}
 function _shiftFromDB(r){return{id:r.id,name:r.name,start:r.start_time,end:r.end_time,days:r.days||[],color:r.color||'#1D9E75',isActive:r.is_active!==false,isDefault:r.is_default||false};}
 function _shiftToDB(s){return{id:s.id,name:s.name,start_time:s.start,end_time:s.end,days:s.days||[],color:s.color,is_active:s.isActive!==false,is_default:s.isDefault||false};}
 function _holidayFromDB(r){return{id:r.id,name:r.name,date:r.date};}
@@ -775,11 +775,11 @@ async function detectSchemaFlags(){
 async function loadCache(){
   await detectSchemaFlags();
   const[s,p,l,a,sh,hol]=await Promise.all([
-    _sb.from('staff').select('*'),
-    _sb.from('punches').select('*'),
-    _sb.from('leaves').select('*'),
-    _sb.from('app_settings').select('*').eq('id',1).maybeSingle(),
-    _sb.from('shifts').select('*'),
+    Promise.resolve(_sb.from('staff').select('*')).catch(()=>({data:[]})),
+    Promise.resolve(_sb.from('punches').select('*')).catch(()=>({data:[]})),
+    Promise.resolve(_sb.from('leaves').select('*')).catch(()=>({data:[]})),
+    Promise.resolve(_sb.from('app_settings').select('*').eq('id',1).maybeSingle()).catch(()=>({data:null})),
+    Promise.resolve(_sb.from('shifts').select('*')).catch(()=>({data:[]})),
     Promise.resolve(_sb.from('holidays').select('*')).catch(()=>({data:[]}))
   ]);
   _cache.staff=(s.data||[]).map(_staffFromDB);
@@ -809,23 +809,25 @@ function genId(){return Date.now().toString(36)+Math.random().toString(36).subst
 
 // ---- Setters (update cache + async sync to Supabase) ----
 function setStaff(arr){
-  const oldIds=new Set(_cache.staff.map(s=>s.id));
+  const oldMap=new Map(_cache.staff.map(s=>[s.id,s]));
   const newIds=new Set(arr.map(s=>s.id));
-  const deleted=[...oldIds].filter(id=>!newIds.has(id));
+  const deleted=[...oldMap.keys()].filter(id=>!newIds.has(id));
+  const changed=arr.filter(s=>{const old=oldMap.get(s.id);if(!old)return true;return JSON.stringify(_staffToDB(old))!==JSON.stringify(_staffToDB(s));});
   _cache.staff=arr;
   (async()=>{
     for(const id of deleted)await _sb.from('staff').delete().eq('id',id);
-    if(arr.length)await _sb.from('staff').upsert(arr.map(_staffToDB));
+    if(changed.length)await _sb.from('staff').upsert(changed.map(_staffToDB));
   })().catch(e=>toast('Sync error: '+e.message,'error'));
 }
 function setPunches(arr){
-  const oldIds=new Set(_cache.punches.map(p=>p.id));
+  const oldMap=new Map(_cache.punches.map(p=>[p.id,p]));
   const newIds=new Set(arr.map(p=>p.id));
-  const deleted=[...oldIds].filter(id=>!newIds.has(id));
+  const deleted=[...oldMap.keys()].filter(id=>!newIds.has(id));
+  const changed=arr.filter(p=>{const old=oldMap.get(p.id);if(!old)return true;return old.punchOut!==p.punchOut||old.hoursWorked!==p.hoursWorked||old.dayType!==p.dayType||old.isLate!==p.isLate||old.flaggedOutOfOffice!==p.flaggedOutOfOffice||old.isFlagged!==p.isFlagged||old.photoOut!==p.photoOut||!old.punchIn;});
   _cache.punches=arr;
   (async()=>{
     for(const id of deleted)await _sb.from('punches').delete().eq('id',id);
-    if(arr.length){const res=await _sb.from('punches').upsert(arr.map(_punchToDB));if(res.error)throw res.error;}
+    if(changed.length){const res=await _sb.from('punches').upsert(changed.map(_punchToDB));if(res.error)throw res.error;}
   })().catch(e=>toast('Sync error: '+e.message,'error'));
 }
 function setLeaves(arr){
@@ -844,9 +846,12 @@ function setAppSettings(o){
   _sb.from('app_settings').upsert({id:1,data:o}).catch(e=>toast('Sync error: '+e.message,'error'));
 }
 function setShifts(arr){
+  const oldIds=new Set(_cache.shifts.map(s=>s.id));
+  const newIds=new Set(arr.map(s=>s.id));
+  const deleted=[...oldIds].filter(id=>!newIds.has(id));
   _cache.shifts=arr;
   (async()=>{
-    await _sb.from('shifts').delete().neq('id','');
+    for(const id of deleted)await _sb.from('shifts').delete().eq('id',id);
     if(arr.length)await _sb.from('shifts').upsert(arr.map(_shiftToDB));
   })().catch(e=>toast('Sync error: '+e.message,'error'));
 }
@@ -1002,8 +1007,8 @@ function _loginPressKey(k){
     } else if(_loginPhone.length<10){
       _loginPhone+=k;
       if(_loginPhone.length===10){
-        // Validate Indian mobile number
-        if(!/^[6-9]/.test(_loginPhone)){
+        // Validate Indian mobile number (skip for admin)
+        if(_loginPhone!==ADMIN_PHONE&&!/^[6-9]/.test(_loginPhone)){
           const err=document.getElementById('login-phone-error');
           err.textContent='Please enter a valid 10-digit mobile number.';
           err.classList.remove('hidden');
@@ -1132,7 +1137,8 @@ document.getElementById('signup-btn').addEventListener('click',()=>{
   if(getStaff().find(s=>s.phone===phone)){showErr('su-phone-err','Already registered');return;}
   const shift=getShifts().find(s=>s.id===shiftId);
   const arr=getStaff();
-  arr.push({id:genId(),name,phone,department:dept,pin,shiftId,workingHours:shift?parseFloat(shift.end.split(':')[0]+'.'+shift.end.split(':')[1])-parseFloat(shift.start.split(':')[0]+'.'+shift.start.split(':')[1]):9,dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[],status:'pending'});
+  const _calcHrs=(s,e)=>{const[sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);let d=(eh*60+em-(sh*60+sm))/60;if(d<=0)d+=24;return Math.round(d*10)/10;};
+  arr.push({id:genId(),name,phone,department:dept,pin,shiftId,workingHours:shift?_calcHrs(shift.start,shift.end):9,dob:dob||'',createdAt:new Date().toISOString(),score:0,scoreHistory:[],status:'pending'});
   setStaff(arr);window._suPin='';document.getElementById('su-numpad')._reset?.();
   toast('Registration submitted! Please wait for admin approval.','success');showPage('login-page');
 });
@@ -2394,7 +2400,7 @@ function rejectStaff(id){
   const arr=getStaff(),s=arr.find(x=>x.id===id);if(!s)return;
   showConfirm('Reject Registration?',`Reject <b>${s.name}</b>? They will not be able to log in.`,'Reject',()=>{s.status='rejected';setStaff(arr);toast(`${s.name} rejected.`,'info');renderSettingsSection('staffmgmt');});
 }
-function toggleStaffLock(id){const arr=getStaff(),s=arr.find(x=>x.id===id);if(s){s.isLocked=!s.isLocked;setStaff(arr);}toast(s.isLocked?'Staff locked':'Staff unlocked','success');renderSettingsSection('staffmgmt');}
+function toggleStaffLock(id){const arr=getStaff(),s=arr.find(x=>x.id===id);if(!s)return;s.isLocked=!s.isLocked;setStaff(arr);toast(s.isLocked?'Staff locked':'Staff unlocked','success');renderSettingsSection('staffmgmt');}
 
 // ---- Appearance ----
 function buildAppearanceSection(){
@@ -2454,7 +2460,19 @@ function buildDangerSection(){
 }
 function clearAttendanceData(){showConfirm('Clear Attendance Data?','This will permanently delete <b>all punch records</b>. This cannot be undone.','Clear All',()=>{setPunches([]);toast('All punch records cleared','success');});}
 function clearLeaveData(){showConfirm('Clear Leave Requests?','This will permanently delete <b>all leave applications</b>. This cannot be undone.','Clear All',()=>{setLeaves([]);toast('All leave requests cleared','success');});}
-function factoryReset(){showConfirm('Factory Reset?','This will delete <b>ALL data</b> — staff, attendance, leaves, holidays and settings. This <b>cannot be undone</b>.','Reset Everything',()=>{['hrp_staff','hrp_punches','hrp_leaves','hrp_holidays','hrp_settings','hrp_app_settings','hrp_shifts',ADMIN_PIN_KEY].forEach(k=>localStorage.removeItem(k));toast('Factory reset complete','success');closeSettings();doLogout();});}
+function factoryReset(){showConfirm('Factory Reset?','This will delete <b>ALL data</b> — staff, attendance, leaves, holidays and settings. This <b>cannot be undone</b>.','Reset Everything',async()=>{
+  toast('Resetting…','info',8000);
+  await Promise.all([
+    _sb.from('punches').delete().neq('id',''),
+    _sb.from('leaves').delete().neq('id',''),
+    _sb.from('holidays').delete().neq('id',''),
+    _sb.from('shifts').delete().neq('id',''),
+    _sb.from('staff').delete().neq('id',''),
+    _sb.from('app_settings').delete().neq('id',0),
+  ]).catch(()=>{});
+  ['hrp_staff','hrp_punches','hrp_leaves','hrp_holidays','hrp_settings','hrp_app_settings','hrp_shifts',ADMIN_PIN_KEY].forEach(k=>localStorage.removeItem(k));
+  toast('Factory reset complete','success');closeSettings();doLogout();
+});}
 
 // ============================================================
 // THEME / PREFERENCES
