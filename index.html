@@ -2499,12 +2499,14 @@ function saveAppSetting(key,val){const s=getAppSettings();s[key]=val;setAppSetti
 
 function detectAdminLocation(){
   if(!navigator.geolocation){toast('Geolocation not supported','error');return;}
-  toast('Detecting location...','info');
+  const btn=document.querySelector('[onclick="detectAdminLocation()"]');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Detecting...';}
+  const done=()=>{renderSettingsSection('app');};
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6);
     const s=getAppSettings();s.officeLat=lat;s.officeLng=lng;setAppSettings(s);
-    renderSettingsSection('app');
-    toast('Location detected!','success');
+    done();
+    toast(`Location set: ${lat}, ${lng}`,'success');
     try{
       const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
       const d=await r.json();
@@ -2514,9 +2516,10 @@ function detectAdminLocation(){
       if(preview&&addrEl){addrEl.textContent=addr;preview.style.display='block';}
     }catch(e){}
   },err=>{
-    const msg={1:'Location permission denied — please allow location access in your browser settings',2:'Location unavailable',3:'Location request timed out'}[err.code]||'Could not get location';
+    done();
+    const msg={1:'Location permission denied — allow location in browser settings then try again',2:'Location unavailable on this device',3:'Timed out — try again or enter coordinates manually'}[err.code]||'Could not get location';
     toast(msg,'error');
-  },{enableHighAccuracy:true,timeout:10000});
+  },{enableHighAccuracy:false,timeout:15000,maximumAge:60000});
 }
 
 // ---- Holidays Settings ----
