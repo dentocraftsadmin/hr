@@ -362,7 +362,7 @@ th{letter-spacing:0.07em}
   <div class="card">
     <div class="form-group">
       <label>Full Name</label>
-      <input type="text" id="su-name" class="form-input" placeholder="e.g. Priya Sharma">
+      <input type="text" id="su-name" class="form-input" placeholder="e.g. Priya Sharma" autocapitalize="words">
       <div class="field-error hidden" id="su-name-err"></div>
     </div>
     <div class="form-group">
@@ -1922,7 +1922,7 @@ function openEditStaff(id){
   const s=getStaff().find(x=>x.id===id);if(!s)return;
   document.getElementById('detail-modal-title').textContent='Edit Staff: '+s.name;
   document.getElementById('detail-modal-body').innerHTML=`
-    <div class="form-group"><label>Full Name</label><input class="form-input" id="edit-name" value="${s.name}"></div>
+    <div class="form-group"><label>Full Name</label><input class="form-input" id="edit-name" value="${s.name}" autocapitalize="words"></div>
     <div class="form-group"><label>Mobile Number</label><input type="tel" class="form-input" id="edit-phone" value="${s.phone}" maxlength="10" inputmode="numeric" placeholder="10-digit"></div>
     <div class="form-group"><label>Department</label><select class="form-input" id="edit-dept">
       ${DEPTS.map(d=>`<option ${s.department===d?'selected':''}>${d}</option>`).join('')}
@@ -1960,7 +1960,7 @@ function openAddStaffModal(){
   const shifts=getShifts().filter(s=>s.isActive);
   document.getElementById('detail-modal-title').textContent='Add New Staff';
   document.getElementById('detail-modal-body').innerHTML=`
-    <div class="form-group"><label>Full Name *</label><input class="form-input" id="add-name" placeholder="e.g. Priya Sharma"></div>
+    <div class="form-group"><label>Full Name *</label><input class="form-input" id="add-name" placeholder="e.g. Priya Sharma" autocapitalize="words"></div>
     <div class="form-group"><label>Mobile Number *</label><input type="tel" class="form-input" id="add-phone" placeholder="10-digit" maxlength="10" inputmode="numeric"></div>
     <div class="form-group"><label>Department *</label><select class="form-input" id="add-dept">
       <option value="">Select Department</option>
@@ -2421,7 +2421,7 @@ function buildProfileSection(){
       <div class="form-group"><label>Phone</label><input class="form-input" value="${staff.phone}" readonly style="opacity:0.6"></div>
       <div class="form-group"><label>Department</label><input class="form-input" value="${staff.department}" readonly style="opacity:0.6"></div>
       <div class="form-group"><label>Date of Birth</label><input type="date" class="form-input" id="set-staff-dob" value="${staff.dob||''}" onchange="saveStaffProfile()"></div>
-      <div class="form-group"><label>Emergency Contact</label><input class="form-input" id="set-staff-ec" value="${staff.emergencyContact||''}" placeholder="Name & Phone" oninput="saveStaffProfile()"></div>
+      <div class="form-group"><label>Emergency Contact</label><input class="form-input" id="set-staff-ec" value="${staff.emergencyContact||''}" placeholder="Name & Phone" oninput="saveStaffProfile()" autocapitalize="words"></div>
       <h4>Change PIN</h4>
       <div class="form-group"><label>Current PIN</label><input type="password" class="form-input" id="set-staff-cur-pin" maxlength="4" inputmode="numeric" placeholder="Current PIN"></div>
       <div class="form-group"><label>New PIN</label><input type="password" class="form-input" id="set-staff-new-pin" maxlength="4" inputmode="numeric" placeholder="New PIN"></div>
@@ -2461,7 +2461,7 @@ function buildAppSection(){
   const s=getAppSettings();
   return`<h3>App Settings</h3>
     <h4>Company Info</h4>
-    <div class="form-group"><label>Company Name</label><input class="form-input" id="as-company-name" value="${s.companyName||''}" oninput="saveAppSetting('companyName',this.value)"></div>
+    <div class="form-group"><label>Company Name</label><input class="form-input" id="as-company-name" value="${s.companyName||''}" oninput="saveAppSetting('companyName',this.value)" autocapitalize="words"></div>
     <div class="form-group"><label>Tagline</label><input class="form-input" value="${s.companyTagline||''}" oninput="saveAppSetting('companyTagline',this.value)"></div>
     <h4>Office Locations</h4>
     <p class="text-sm text-muted mb-3">Add each office/branch. Staff can be assigned to a specific office — flagging checks their assigned location.</p>
@@ -2479,7 +2479,7 @@ function buildAppSection(){
     </div>
     <div class="card mb-3" style="padding:14px">
       <div class="fw-600 mb-2">Add Office</div>
-      <div class="form-group"><label>Office Name</label><input class="form-input" id="new-office-name" placeholder="e.g. Main Lab, CBCT Centre"></div>
+      <div class="form-group"><label>Office Name</label><input class="form-input" id="new-office-name" placeholder="e.g. Main Lab, CBCT Centre" autocapitalize="words"></div>
       <div class="form-group mb-2">
         <label>Search by area / street / landmark</label>
         <div class="flex gap-2">
@@ -2610,7 +2610,7 @@ function buildHolidaysSection(){
   return`<h3>Paid Holidays</h3>
     <p class="text-sm text-muted mb-3">Add company-declared paid holidays. These appear on the calendar and are excluded from absent calculations in reports.</p>
     <div class="card mb-3">
-      <div class="form-group"><label>Holiday Name</label><input class="form-input" id="hol-name" placeholder="e.g. Diwali"></div>
+      <div class="form-group"><label>Holiday Name</label><input class="form-input" id="hol-name" placeholder="e.g. Diwali" autocapitalize="words"></div>
       <div class="form-group"><label>Date</label><input type="date" class="form-input" id="hol-date"></div>
       <button class="btn btn-primary w-full" onclick="addHoliday()">+ Add Holiday</button>
     </div>
@@ -2668,7 +2668,7 @@ function openAddShiftModal(shiftId){
   wrap.classList.remove('hidden');
   wrap.innerHTML=`<div class="card">
     <h4 style="margin-top:0">${sh?'Edit':'New'} Shift</h4>
-    <div class="form-group"><label>Shift Name</label><input class="form-input" id="sf-name" value="${sh?.name||''}"></div>
+    <div class="form-group"><label>Shift Name</label><input class="form-input" id="sf-name" value="${sh?.name||''}" autocapitalize="words"></div>
     <div class="flex gap-2">
       <div class="form-group flex-1"><label>Start</label><input type="time" class="form-input" id="sf-start" value="${sh?.start||'09:00'}"></div>
       <div class="form-group flex-1"><label>End</label><input type="time" class="form-input" id="sf-end" value="${sh?.end||'18:00'}"></div>
