@@ -929,7 +929,7 @@ function setLeaves(arr){
 function setSettings(o){setAppSettings(o);}
 function setAppSettings(o){
   _cache.appSettings=o;
-  _sb.from('app_settings').upsert({id:1,data:o}).catch(e=>toast('Sync error: '+e.message,'error'));
+  _sb.from('app_settings').upsert({id:1,data:o},{onConflict:'id'}).catch(e=>toast('Sync error: '+e.message,'error'));
 }
 function setShifts(arr){
   const oldIds=new Set(_cache.shifts.map(s=>s.id));
