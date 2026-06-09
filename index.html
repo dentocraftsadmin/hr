@@ -1197,7 +1197,7 @@ function renderSignupShifts(){
   const officeWrap=document.getElementById('su-office-wrap');
   const officeSelect=document.getElementById('su-office');
   if(offices.length&&officeWrap&&officeSelect){
-    officeSelect.innerHTML=`<option value="">Select office</option>`+offices.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+    officeSelect.innerHTML=offices.map((o,i)=>`<option value="${o.id}" ${i===0?'selected':''}>${o.name}</option>`).join('');
     officeWrap.style.display='block';
   } else if(officeWrap){officeWrap.style.display='none';}
 }
