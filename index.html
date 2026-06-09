@@ -1819,7 +1819,7 @@ function renderAdminDashboard(){
       <img class="feed-thumb" src="${p.photoIn||''}" onerror="this.style.background='var(--primary-light)'">
       <div style="flex:1;min-width:0">
         <div class="fw-600 truncate">${s.name}${p.flaggedOutOfOffice?' ⚠️':''}</div>
-        <div class="text-sm text-muted">${s.department} · In: ${fmtTime(p.punchIn)}${p.punchOut?' · Out: '+fmtTime(p.punchOut):''}</div>
+        <div class="text-sm text-muted">${s.department}${s.officeId?' · 🏢 '+(getOfficeLocations().find(o=>o.id===s.officeId)?.name||''):''} · In: ${fmtTime(p.punchIn)}${p.punchOut?' · Out: '+fmtTime(p.punchOut):''}</div>
       </div>
       <span class="badge badge-${badge}">${dtype}</span>
     </div>`;
@@ -1839,7 +1839,7 @@ function showDashboardGroup(type){
     <div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0">${getInitials(s.name)}</div>
     <div style="flex:1;min-width:0">
       <div class="fw-600 truncate">${s.name}</div>
-      <div class="text-sm text-muted truncate">${s.department}${sub?' · '+sub:''}</div>
+      <div class="text-sm text-muted truncate">${s.department}${s.officeId?' · 🏢 '+(getOfficeLocations().find(o=>o.id===s.officeId)?.name||''):''}${sub?' · '+sub:''}</div>
     </div>
   </div>`;
   const empty=msg=>`<div class="text-muted text-sm" style="text-align:center;padding:32px">${msg}</div>`;
@@ -1909,7 +1909,7 @@ function renderStaffTable(){
       <div class="staff-card-main">
         <div>
           <div class="staff-card-name">${s.name}${s.isLocked?'&nbsp;<span class="badge badge-absent" style="font-size:0.65rem">Locked</span>':''}</div>
-          <div class="staff-card-dept">${s.department}</div>
+          <div class="staff-card-dept">${s.department}${s.officeId?(' · <span style="color:var(--primary)">🏢 '+( getOfficeLocations().find(o=>o.id===s.officeId)?.name||'')+'</span>'):''}  </div>
         </div>
         <div class="stars-input" data-staff="${s.id}" style="flex-shrink:0">
           ${[1,2,3,4,5].map(i=>`<span class="star ${(s.score||0)>=i?'on':''}" data-val="${i}">★</span>`).join('')}
@@ -2030,6 +2030,7 @@ function viewStaffDetail(staffId){
     <div class="card mb-3">
       <div class="punch-row"><span class="punch-label">Phone</span><span>${s.phone}</span></div>
       <div class="punch-row"><span class="punch-label">Department</span><span>${s.department}</span></div>
+      ${s.officeId?`<div class="punch-row"><span class="punch-label">Office</span><span>🏢 ${getOfficeLocations().find(o=>o.id===s.officeId)?.name||'—'}</span></div>`:''}
       <div class="punch-row"><span class="punch-label">Joined</span><span>${fmtDate(s.joiningDate||s.createdAt)}</span></div>
       ${s.dob?`<div class="punch-row"><span class="punch-label">Birthday</span><span>${fmtDate(s.dob)}</span></div>`:''}
       <div class="punch-row"><span class="punch-label">Score</span><span>${renderStars(s.score||0)} (${s.score||0}/5)</span></div>
