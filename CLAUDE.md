@@ -70,9 +70,50 @@ those functions are the only writers.
 
 ## Build order (in progress — update as milestones land)
 
-Database → **auth (done)** → employee/HR foundation → attendance → leave/holidays
-→ automated scoring → push notifications → HR dashboard → reports → photo
-archival → polish.
+Database → **auth (done)** → **employee/HR foundation (done)** →
+**attendance (done — core punch flow)** → leave/holidays → automated scoring
+(late-mark points already land automatically via the punch RPC; the rest —
+unapproved-absence points, HR override UI — comes with that milestone) →
+push notifications → HR dashboard → reports → photo archival → polish.
+
+Employee/HR foundation notes: `updateEmployee` (full field update) exists
+alongside `updateEmployeeStatus` (status-only) — always use the status-only
+action for status changes; it deliberately doesn't accept
+department/designation/shift so a status change can never blank them out.
+
+### Attendance engine
+
+`submit_punch()` in `supabase/migrations/20260903180019_attendance_engine.sql`
+is the only writer of `attendance_events`/`attendance_days`/automatic
+`points_ledger` rows — SECURITY DEFINER, `employee` role has no direct INSERT
+on those tables. It:
+
+- Derives "today" and lateness from **server time in `app_settings.timezone`**,
+  never from the client-supplied timestamp (that's stored as
+  `client_captured_at` for diagnostics only, and drives `validation_status`
+  when it drifts >5 minutes from server time).
+- Picks the nearest of the employee's authorized offices (`employee_offices`)
+  as the applicable office, compares distance to *that office's own*
+  `radius_meters`.
+- Is idempotent on `(employee_id, client_request_id)` — the client generates
+  that id once per attempt and reuses it across retries.
+- Seeded one default `point_rules` row (`LATE_ARRIVAL`, -2) so scoring works
+  before the dedicated rules UI exists — expect HR to want to tune this.
+
+**Known gaps, intentionally deferred to the leave/scoring milestones, not
+forgotten:**
+- No nightly job yet to mark a day `absent` when an employee never punches
+  at all — today only handles days where at least a punch-in happened.
+- No unapproved-absence points — only the late-arrival rule is wired up.
+- Photo capture flow (`components/attendance/punch-flow.tsx`) keeps the
+  idempotency key in React state only — safe against a retry click within
+  the same page load (the DB constraint prevents a duplicate either way),
+  but not against the tab being killed mid-upload. Upgrading to an
+  IndexedDB-backed queue is a reasonable "reliability polish" item, not done
+  now.
+- Storage bucket `punch-photos-temp` is private; RLS restricts each employee
+  to their own `temp/<employee_id>/` prefix. No monthly archive job yet —
+  that's the "photo archival" milestone.
 
 ## Conventions
 
