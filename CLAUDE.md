@@ -91,7 +91,24 @@ those functions are the only writers.
 Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
 **automated scoring (done)** → **push notifications (done)** → **HR
-dashboard (done)** → **reports (done)** → photo archival → polish.
+dashboard (done)** → **reports (done)** → **photo archival (done, pending
+one Google credential)** → polish.
+
+Photo archival notes: full pipeline is built and correct
+(`lib/archive/{run,google-drive,filename}.ts`, monthly Vercel Cron at
+`/api/cron/archive-photos`), but genuinely cannot go live without a Google
+service account — that's a credential only Google's own console can issue,
+there's no code-only path around it. Until `GOOGLE_SERVICE_ACCOUNT_EMAIL` /
+`GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` / `GOOGLE_DRIVE_ROOT_FOLDER_ID` are set
+(see `.env.local.example` for exactly where each comes from), the job is a
+safe no-op — temp photos just wait, nothing is lost or deleted. One ZIP per
+employee per month (not individual loose files) to keep Drive API calls
+low; a failed employee never blocks another's, and a failure leaves
+`photo_status` at `'uploaded'` (never a terminal `'failed'` state) so the
+next run retries automatically. The idempotency guard on `photo_archive_jobs`
+is an optimistic status check, not a real advisory lock — fine for a
+monthly Vercel Cron trigger, called out here in case it ever needs
+hardening.
 
 Reports notes: 7 export routes under `/api/exports/*` (attendance,
 employees, points, leave, shifts, offices, holidays), all admin-only,

@@ -36,6 +36,16 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   };
 }
 
+export async function listRecentArchiveJobs() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("photo_archive_jobs")
+    .select("period_month, status, archived_count, failed_count, completed_at")
+    .order("period_month", { ascending: false })
+    .limit(6);
+  return data ?? [];
+}
+
 export async function listFlaggedAttendanceDays() {
   const supabase = await createClient();
   const { data } = await supabase
