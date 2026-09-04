@@ -25,9 +25,16 @@ proposed:
 - Auth users are created via the **service role** (`lib/supabase/admin.ts`)
   with `phone_confirm: true` and `password: <4-digit PIN>` — no SMS is ever
   sent because admin-created users skip verification entirely.
-- This requires two one-time Supabase Dashboard settings (see README) — they
-  are outside what code/migrations can set, so verify them before testing
-  login against the real project.
+- Supabase enforces a hard floor of 6 characters on `password_min_length`
+  (its API rejects anything lower) — but the requirement is an exactly-4-digit
+  PIN. Bridged in `lib/auth/pin.ts`: `toAuthPassword(pin)` prefixes the PIN
+  before it's ever sent to Supabase Auth as a password. Employees only ever
+  see/type 4 digits anywhere in the UI; every login/change-PIN/reset-PIN call
+  goes through this transform. Applied live — this is not a TODO.
+- Live project settings (already applied via the Supabase Management API,
+  not just documented): Phone sign-in provider enabled, password minimum
+  length set to 6 (the platform floor; irrelevant to the UX since the real
+  stored password is always 8+ chars via the prefix above).
 - Self change-PIN: `auth.updateUser({ password })` after re-verifying the
   current PIN. HR reset-PIN: `auth.admin.updateUserById(...)` with the
   service role — no custom PIN hash column exists or is needed.

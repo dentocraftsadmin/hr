@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/data/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toE164 } from "@/lib/auth/phone";
+import { toAuthPassword } from "@/lib/auth/pin";
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
@@ -69,7 +70,7 @@ export async function createEmployee(formData: FormData): Promise<ActionResult> 
   const authAdmin = createAdminClient();
   const { data: authUser, error: authError } = await authAdmin.auth.admin.createUser({
     phone: toE164(data.phone),
-    password: data.pin,
+    password: toAuthPassword(data.pin),
     phone_confirm: true,
   });
   if (authError || !authUser.user) {

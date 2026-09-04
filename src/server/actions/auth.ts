@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toE164 } from "@/lib/auth/phone";
+import { toAuthPassword } from "@/lib/auth/pin";
 import { loginSchema, changePinSchema, resetPinSchema } from "@/lib/validation/auth";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -20,7 +21,7 @@ export async function login(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     phone: toE164(parsed.data.phone),
-    password: parsed.data.pin,
+    password: toAuthPassword(parsed.data.pin),
   });
 
   if (error) {
@@ -60,14 +61,14 @@ export async function changeOwnPin(formData: FormData): Promise<ActionResult> {
 
   const { error: verifyError } = await supabase.auth.signInWithPassword({
     phone: user.phone,
-    password: parsed.data.currentPin,
+    password: toAuthPassword(parsed.data.currentPin),
   });
   if (verifyError) {
     return { ok: false, error: "Current PIN is incorrect." };
   }
 
   const { error: updateError } = await supabase.auth.updateUser({
-    password: parsed.data.newPin,
+    password: toAuthPassword(parsed.data.newPin),
   });
   if (updateError) {
     return { ok: false, error: "Could not update PIN. Try again." };
@@ -110,7 +111,7 @@ export async function resetEmployeePin(formData: FormData): Promise<ActionResult
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(targetProfile.id, {
-    password: parsed.data.newPin,
+    password: toAuthPassword(parsed.data.newPin),
   });
   if (error) {
     return { ok: false, error: "Could not reset PIN. Try again." };
