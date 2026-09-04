@@ -20,8 +20,12 @@ sign-in — not the email-alias workaround the architecture doc originally
 proposed:
 
 - `employees.phone` is a plain 10-digit number (no country code). The
-  matching `auth.users.phone` is the E.164 form (`+91` + the 10 digits) —
-  conversion happens only in `lib/auth/phone.ts`.
+  matching `auth.users.phone` is country-code + digits with **no leading
+  "+"** — conversion happens only in `lib/auth/phone.ts`. Found by an actual
+  login failing end-to-end during the polish pass: a leading "+" (technically
+  correct E.164) made every `signInWithPassword` call fail with a generic
+  "Invalid login credentials", because Supabase's own stored/looked-up
+  format omits it. Don't reintroduce the "+".
 - Auth users are created via the **service role** (`lib/supabase/admin.ts`)
   with `phone_confirm: true` and `password: <4-digit PIN>` — no SMS is ever
   sent because admin-created users skip verification entirely.
@@ -92,7 +96,34 @@ Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
 **automated scoring (done)** → **push notifications (done)** → **HR
 dashboard (done)** → **reports (done)** → **photo archival (done, pending
-one Google credential)** → polish.
+one Google credential)** → **polish (done — first real smoke test, see
+below)**. V1 scope complete.
+
+Polish notes: this milestone's real value was running the app for the
+first time against the live database (dev server + browser), not visual
+changes. Two genuine bugs only a live login could have caught:
+
+1. The phone-format bug above (E.164's leading "+" vs. what Supabase
+   actually stores) — every single login/employee-creation was silently
+   broken until this was found.
+2. An admin-only account (no linked `employees` row — true of the
+   bootstrapped admin) hit a redirect loop between `/login` and
+   `/dashboard`: the dashboard redirected it to `/login` for having no
+   employee, and middleware redirected an authenticated user away from
+   `/login` right back to `/dashboard`. Fixed two ways: `login()` now
+   returns the signed-in user's role so the login page routes admins to
+   `/admin` directly, and `/dashboard`+`/dashboard/leave` fall back to
+   `/admin` (not `/login`) for a role='admin' account with no employee
+   record, so the loop can't recur even if something else routes there.
+
+Verified end-to-end on the live project after these fixes: employee
+creation (with real Supabase Auth provisioning), login as both roles,
+leave request → approval, compliance score + HR override, and a real
+`.xlsx` export download (200 OK) — then all test data was deleted via the
+Management API, leaving the database clean.
+
+Added `.claude/launch.json` (`npm run dev` on port 3000) so this and future
+sessions can preview the app in-browser directly.
 
 Photo archival notes: full pipeline is built and correct
 (`lib/archive/{run,google-drive,filename}.ts`, monthly Vercel Cron at

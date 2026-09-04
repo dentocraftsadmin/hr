@@ -8,8 +8,9 @@ import { toAuthPassword } from "@/lib/auth/pin";
 import { loginSchema, changePinSchema, resetPinSchema } from "@/lib/validation/auth";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+export type LoginResult = { ok: true; role: "employee" | "admin" } | { ok: false; error: string };
 
-export async function login(formData: FormData): Promise<ActionResult> {
+export async function login(formData: FormData): Promise<LoginResult> {
   const parsed = loginSchema.safeParse({
     phone: formData.get("phone"),
     pin: formData.get("pin"),
@@ -19,19 +20,20 @@ export async function login(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     phone: toE164(parsed.data.phone),
     password: toAuthPassword(parsed.data.pin),
   });
 
-  if (error) {
+  if (error || !data.user) {
     // Supabase returns the same generic error for "no such user" and "wrong
     // password" — deliberately not distinguished here either, so the login
     // screen can't be used to enumerate registered phone numbers.
     return { ok: false, error: "Incorrect phone number or PIN." };
   }
 
-  return { ok: true };
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+  return { ok: true, role: profile?.role === "admin" ? "admin" : "employee" };
 }
 
 export async function logout() {

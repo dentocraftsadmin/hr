@@ -1,0 +1,13 @@
+{
+  "name": "CraftsHR",
+  "short_name": "CraftsHR",
+  "description": "Attendance, leave, and compliance for CraftsHR",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#2f6f6a",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

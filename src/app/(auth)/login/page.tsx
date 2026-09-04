@@ -23,7 +23,7 @@ export default function LoginPage() {
         setError(result.error);
         return;
       }
-      router.replace("/dashboard");
+      router.replace(result.role === "admin" ? "/admin" : "/dashboard");
       router.refresh();
     });
   }

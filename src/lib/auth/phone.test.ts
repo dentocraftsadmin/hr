@@ -15,9 +15,10 @@ describe("phone helpers", () => {
     expect(isValidPhone("987654321099")).toBe(false);
   });
 
-  it("converts to and from E.164 consistently", () => {
-    const e164 = toE164("9876543210");
-    expect(e164).toBe("+919876543210");
-    expect(fromE164(e164)).toBe("9876543210");
+  it("converts to and from Supabase's phone format consistently", () => {
+    // No leading "+" — Supabase Auth stores/looks up phone as bare digits.
+    const stored = toE164("9876543210");
+    expect(stored).toBe("919876543210");
+    expect(fromE164(stored)).toBe("9876543210");
   });
 });

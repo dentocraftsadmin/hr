@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CraftsHR",
   description: "Attendance, leave and compliance for CraftsHR.",
+  manifest: "/manifest.json",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2f6f6a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

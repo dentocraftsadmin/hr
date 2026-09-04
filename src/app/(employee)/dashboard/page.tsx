@@ -10,7 +10,14 @@ import { NotificationSettings } from "@/components/attendance/notification-setti
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  if (!user || !user.employee) redirect("/login");
+  if (!user) redirect("/login");
+  if (!user.employee) {
+    // An admin-only account (no linked employee record) has nothing to
+    // show here — send it to the console instead of back to /login, which
+    // would just bounce straight back (middleware sends a signed-in user
+    // away from /login) and loop.
+    redirect(user.role === "admin" ? "/admin" : "/login");
+  }
 
   const [today, score, history, preferences] = await Promise.all([
     getTodayAttendance(user.employee.id),

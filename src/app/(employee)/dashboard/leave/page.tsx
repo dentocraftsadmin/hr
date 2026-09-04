@@ -6,7 +6,8 @@ import { LeaveHistory } from "@/components/leave/leave-history";
 
 export default async function EmployeeLeavePage() {
   const user = await getCurrentUser();
-  if (!user || !user.employee) redirect("/login");
+  if (!user) redirect("/login");
+  if (!user.employee) redirect(user.role === "admin" ? "/admin" : "/login");
 
   const [leaveTypes, holidays, balances, requests] = await Promise.all([
     listLeaveTypes(),
