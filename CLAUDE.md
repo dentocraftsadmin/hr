@@ -39,6 +39,17 @@ proposed:
   current PIN. HR reset-PIN: `auth.admin.updateUserById(...)` with the
   service role — no custom PIN hash column exists or is needed.
 
+## Bootstrapping the first admin
+
+There's no in-app path to create the first admin account — `createEmployee`
+and every admin action require an existing admin session. The first one was
+created directly (auth.users + auth.identities + profiles rows via SQL,
+matching GoTrue's expected shape exactly, verified with a crypt() hash
+check) since this environment has no network path to the project's own
+GoTrue endpoint to use the normal admin API for it. If more admins are ever
+needed beyond editing an existing employee's role, that's a real gap worth a
+small dedicated flow — not built now since it's a one-time need.
+
 ## Roles
 
 Two roles only: `employee` and `admin`. HR and Admin are **one** role — do
@@ -78,10 +89,20 @@ those functions are the only writers.
 ## Build order (in progress — update as milestones land)
 
 Database → **auth (done)** → **employee/HR foundation (done)** →
-**attendance (done — core punch flow)** → leave/holidays → automated scoring
-(late-mark points already land automatically via the punch RPC; the rest —
-unapproved-absence points, HR override UI — comes with that milestone) →
-push notifications → HR dashboard → reports → photo archival → polish.
+**attendance (done — core punch flow)** → **leave/holidays (done)** →
+automated scoring (late-mark points already land automatically via the
+punch RPC; the rest — unapproved-absence points, HR override UI — comes
+with that milestone) → push notifications → HR dashboard → reports → photo
+archival → polish.
+
+Leave/holidays notes: `leave_types` seeded with Casual/12, Sick/12, Earned/15
+as sensible defaults (migration 20260904152159) — HR can edit
+`annual_quota` directly, no settings UI for this yet. Balance is always
+computed from approved `leave_requests` for the current year, never a
+stored counter. Cancellation is employee-initiated only while `pending`
+(enforced in the server action, not RLS) — once HR has acted, only HR
+changes status further. No accrual/carry-forward, per the "keep it simple"
+instruction.
 
 Employee/HR foundation notes: `updateEmployee` (full field update) exists
 alongside `updateEmployeeStatus` (status-only) — always use the status-only

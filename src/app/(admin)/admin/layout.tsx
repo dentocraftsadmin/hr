@@ -5,6 +5,8 @@ import { logout } from "@/server/actions/auth";
 
 const NAV = [
   { href: "/admin/employees", label: "Employees" },
+  { href: "/admin/leave", label: "Leave" },
+  { href: "/admin/holidays", label: "Holidays" },
   { href: "/admin/offices", label: "Offices" },
   { href: "/admin/shifts", label: "Shifts" },
   { href: "/admin/departments", label: "Departments" },
