@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/data/current-user";
 import { logout } from "@/server/actions/auth";
 
 const NAV = [
+  { href: "/admin", label: "Dashboard" },
   { href: "/admin/employees", label: "Employees" },
   { href: "/admin/points", label: "Compliance" },
   { href: "/admin/leave", label: "Leave" },

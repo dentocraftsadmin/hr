@@ -90,8 +90,15 @@ those functions are the only writers.
 
 Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
-**automated scoring (done)** → **push notifications (done)** → HR
-dashboard → reports → photo archival → polish.
+**automated scoring (done)** → **push notifications (done)** → **HR
+dashboard (done)** → reports → photo archival → polish.
+
+HR dashboard notes: `/admin` is a real overview now (stat tiles + a
+"needs correction" queue), not a redirect to employees. This is also where
+`attendance_corrections` finally got a UI — `correctAttendanceDay` in
+`server/actions/attendance-corrections.ts` is the only place `attendance_days`
+is ever edited after the fact, always with a before/after snapshot and a
+mandatory reason, and always clears `is_flagged`.
 
 Push notification notes: Vercel's free tier only runs cron jobs daily, too
 coarse for "N minutes before shift start" reminders. Scheduling instead
