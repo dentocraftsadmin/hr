@@ -90,10 +90,22 @@ those functions are the only writers.
 
 Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
-automated scoring (late-mark points already land automatically via the
-punch RPC; the rest — unapproved-absence points, HR override UI — comes
-with that milestone) → push notifications → HR dashboard → reports → photo
-archival → polish.
+**automated scoring (done)** → push notifications → HR dashboard → reports
+→ photo archival → polish.
+
+Automated scoring notes: `finalize_attendance_day(date)` (migration
+20260904154024) is a SECURITY DEFINER function called nightly by
+`/api/cron/finalize-attendance` (Vercel Cron, `vercel.json`, guarded by
+`CRON_SECRET`) for the day that just ended. It marks any active employee
+with no attendance record that day as `week_off`/`holiday`/`on_leave`/
+`absent` (checking shift working_days, holidays, approved leave in that
+order), applies the seeded `UNAPPROVED_ABSENCE` rule (-5) on a genuine
+absence, and flags (never guesses at) an incomplete punch-in-no-punch-out
+day for HR. Score is `greatest(0, least(100, 100 + sum(points)))`, computed
+on every read (`scoreFromPoints` in `lib/data/points.ts`) — still never a
+stored total. HR adjustments at `/admin/points` are ordinary ledger rows
+with `is_override: true` and a required reason; nothing about the ledger is
+ever edited or deleted.
 
 Leave/holidays notes: `leave_types` seeded with Casual/12, Sick/12, Earned/15
 as sensible defaults (migration 20260904152159) — HR can edit

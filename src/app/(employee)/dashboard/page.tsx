@@ -1,14 +1,20 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getTodayAttendance } from "@/lib/data/attendance";
+import { getComplianceScore, getPointsHistory } from "@/lib/data/points";
 import { logout } from "@/server/actions/auth";
 import { PunchFlow } from "@/components/attendance/punch-flow";
+import { ScoreCard } from "@/components/attendance/score-card";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user || !user.employee) redirect("/login");
 
-  const today = await getTodayAttendance(user.employee.id);
+  const [today, score, history] = await Promise.all([
+    getTodayAttendance(user.employee.id),
+    getComplianceScore(user.employee.id),
+    getPointsHistory(user.employee.id),
+  ]);
 
   return (
     <main className="min-h-screen bg-background px-4 py-8">
@@ -33,6 +39,8 @@ export default async function DashboardPage() {
             </p>
           </div>
         )}
+
+        <ScoreCard score={score} history={history} />
 
         <form action={logout}>
           <button
