@@ -91,7 +91,17 @@ those functions are the only writers.
 Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
 **automated scoring (done)** → **push notifications (done)** → **HR
-dashboard (done)** → reports → photo archival → polish.
+dashboard (done)** → **reports (done)** → photo archival → polish.
+
+Reports notes: 7 export routes under `/api/exports/*` (attendance,
+employees, points, leave, shifts, offices, holidays), all admin-only,
+generated server-side from the underlying tables via `exceljs` — never
+whatever happened to be on screen. `/admin/reports` has a shared filter bar
+(date range, employee, department, office) for the four datasets those
+apply to; shifts/offices/holidays are small enough to just export whole.
+No separate aggregated "summary" report — the filtered attendance export
+covers that; further rollups are a spreadsheet operation, not an app
+feature, per "don't over-engineer."
 
 HR dashboard notes: `/admin` is a real overview now (stat tiles + a
 "needs correction" queue), not a redirect to employees. This is also where
