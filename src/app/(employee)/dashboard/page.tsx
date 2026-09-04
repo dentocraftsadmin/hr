@@ -2,18 +2,21 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getTodayAttendance } from "@/lib/data/attendance";
 import { getComplianceScore, getPointsHistory } from "@/lib/data/points";
+import { getNotificationPreferences } from "@/lib/data/notifications";
 import { logout } from "@/server/actions/auth";
 import { PunchFlow } from "@/components/attendance/punch-flow";
 import { ScoreCard } from "@/components/attendance/score-card";
+import { NotificationSettings } from "@/components/attendance/notification-settings";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user || !user.employee) redirect("/login");
 
-  const [today, score, history] = await Promise.all([
+  const [today, score, history, preferences] = await Promise.all([
     getTodayAttendance(user.employee.id),
     getComplianceScore(user.employee.id),
     getPointsHistory(user.employee.id),
+    getNotificationPreferences(user.employee.id),
   ]);
 
   return (
@@ -41,6 +44,8 @@ export default async function DashboardPage() {
         )}
 
         <ScoreCard score={score} history={history} />
+
+        <NotificationSettings preferences={preferences} />
 
         <form action={logout}>
           <button

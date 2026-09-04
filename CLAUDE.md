@@ -90,8 +90,22 @@ those functions are the only writers.
 
 Database → **auth (done)** → **employee/HR foundation (done)** →
 **attendance (done — core punch flow)** → **leave/holidays (done)** →
-**automated scoring (done)** → push notifications → HR dashboard → reports
-→ photo archival → polish.
+**automated scoring (done)** → **push notifications (done)** → HR
+dashboard → reports → photo archival → polish.
+
+Push notification notes: Vercel's free tier only runs cron jobs daily, too
+coarse for "N minutes before shift start" reminders. Scheduling instead
+runs on Supabase's own free `pg_cron` + `pg_net` (migration
+20260904154845) — a `reminder-sweep` job fires every 10 minutes and calls
+`/api/cron/send-reminders` over HTTP, reading the target URL and shared
+secret from `app_settings.app_base_url`/`cron_secret` (both null today —
+the sweep is a harmless no-op until `app_base_url` is set post-deployment).
+`notification_log` dedupes so a reminder fires once per employee per day
+per type regardless of how many 10-minute ticks land inside its window.
+VAPID keys are already generated and in `.env.local` (not committed). Push
+is additive everywhere — every check in the sweep only reads state
+attendance/leave/holiday already produce, and a failed send blocks nothing
+else.
 
 Automated scoring notes: `finalize_attendance_day(date)` (migration
 20260904154024) is a SECURITY DEFINER function called nightly by
