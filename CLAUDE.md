@@ -1,5 +1,52 @@
 # CraftsHR — build notes for Claude
 
+## Security hardening (pre-deployment audit, migration 20260907130840)
+
+A dedicated pre-deployment audit (git/schema/RLS/code review, not just
+typecheck/build) found and fixed three real gaps before anything was pushed
+anywhere:
+
+- `audit_logs` had a SELECT policy for admins but **no INSERT policy at
+  all** — every audit write from the app (employee create/update, PIN
+  reset, leave approve/reject) was silently rejected by RLS the whole time.
+  The feature itself kept working since no call site checked the insert's
+  error, so this was invisible until someone actually queried
+  `audit_logs` and found it empty despite obvious admin activity. Fixed
+  with an INSERT policy scoped to `is_admin()`, same pattern as
+  `attendance_corrections`/`points_ledger`.
+- `employees` UPDATE RLS allowed a self-update with no column restriction,
+  but no self-service profile edit feature exists in the app. Restricted to
+  admin-only. If a genuine self-service field is added later, reopen this
+  narrowly — don't restore a blanket self-update.
+- `leave_requests` UPDATE's `WITH CHECK` constrained only `status` and
+  `employee_id`, not the rest of the row — RLS alone can't compare OLD vs
+  NEW column values, so nothing stopped a direct API call from changing
+  dates/reason/admin_note in the same statement as a "cancel". Added
+  `enforce_leave_cancellation_only()`, a BEFORE UPDATE trigger that no-ops
+  for admins and otherwise verifies the row was pending, the new status is
+  `cancelled`, and no other column changed.
+
+All three were verified against the live database, not just re-run
+tests: created a real employee, updated it, reset its PIN, approved one
+leave request and rejected another — confirmed all 5 as real rows in
+`audit_logs`. Then, as the affected employee via direct PostgREST calls
+(bypassing the app entirely), confirmed a self-tampering PATCH on
+`employees` now affects zero rows, and a leave-cancel PATCH that also
+tried to smuggle a changed reason/dates now gets rejected with `P0001:
+Only the status may change when cancelling a leave request.` — while a
+clean status-only cancel still succeeds. Also confirmed a second
+employee's session gets empty results for every cross-employee read
+(employees, leave_requests, points_ledger, attendance_days) and a 403 on
+writing into another employee's storage path.
+
+A leftover bucket from the old app (`punch-photos`, public, with an
+anon-upload policy, containing 3 real photos) was also found still live in
+the same Supabase project and has been deleted along with that policy —
+unrelated to anything built in this rebuild, but a real exposure that
+predated it. `punch-photos-temp` (the bucket this app actually uses) was
+untouched throughout.
+
+
 Rebuild of an HR/attendance app for ~60 employees. Old app (static HTML,
 client-side auth, plaintext PINs) is gone from `main`; this build happens on
 the `rebuild` branch. Full architecture proposal and feature audit were
