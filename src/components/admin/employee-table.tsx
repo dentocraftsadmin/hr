@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { Search, Users } from "lucide-react";
 import { updateEmployee, updateEmployeeStatus, reassignEmployeeOffice } from "@/server/actions/employees";
 import { resetEmployeePin } from "@/server/actions/auth";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
 
 type Option = { id: string; name: string };
 
@@ -35,41 +38,76 @@ export function EmployeeTable({
   shifts: Option[];
   offices: Option[];
 }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (e) => e.full_name.toLowerCase().includes(q) || e.phone.includes(q)
+    );
+  }, [employees, search]);
+
+  if (employees.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-surface">
+        <EmptyState
+          icon={Users}
+          title="No employees yet"
+          description="Build your workforce by adding your first employee."
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-            <th className="px-4 py-2.5 font-medium">Name</th>
-            <th className="px-4 py-2.5 font-medium">Phone</th>
-            <th className="px-4 py-2.5 font-medium">Department</th>
-            <th className="px-4 py-2.5 font-medium">Designation</th>
-            <th className="px-4 py-2.5 font-medium">Office</th>
-            <th className="px-4 py-2.5 font-medium">Shift</th>
-            <th className="px-4 py-2.5 font-medium">Status</th>
-            <th className="px-4 py-2.5 font-medium">PIN</th>
-          </tr>
-        </thead>
-        <tbody>
-          {employees.length === 0 && (
-            <tr>
-              <td colSpan={8} className="px-4 py-6 text-center text-muted">
-                No employees yet.
-              </td>
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <div className="border-b border-border px-4 py-3">
+        <div className="relative max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-soft" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or phone"
+            className="w-full rounded-lg border border-border bg-background pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+              <th className="px-4 py-2.5 font-medium">Name</th>
+              <th className="px-4 py-2.5 font-medium">Phone</th>
+              <th className="px-4 py-2.5 font-medium">Department</th>
+              <th className="px-4 py-2.5 font-medium">Designation</th>
+              <th className="px-4 py-2.5 font-medium">Office</th>
+              <th className="px-4 py-2.5 font-medium">Shift</th>
+              <th className="px-4 py-2.5 font-medium">Status</th>
+              <th className="px-4 py-2.5 font-medium">PIN</th>
             </tr>
-          )}
-          {employees.map((emp) => (
-            <EmployeeRow
-              key={emp.id}
-              employee={emp}
-              departments={departments}
-              designations={designations}
-              shifts={shifts}
-              offices={offices}
-            />
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted">
+                  No employees match &ldquo;{search}&rdquo;.
+                </td>
+              </tr>
+            )}
+            {filtered.map((emp) => (
+              <EmployeeRow
+                key={emp.id}
+                employee={emp}
+                departments={departments}
+                designations={designations}
+                shifts={shifts}
+                offices={offices}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -143,9 +181,16 @@ function EmployeeRow({
 
   const selectClass = "rounded-md border border-border bg-background px-2 py-1 text-xs max-w-[9rem]";
 
+  const statusTone = status === "active" ? "success" : status === "inactive" ? "warning" : "danger";
+
   return (
-    <tr className="border-b border-border last:border-0 align-top">
-      <td className="px-4 py-2.5 text-foreground whitespace-nowrap">{employee.full_name}</td>
+    <tr className="border-b border-border last:border-0 align-top hover:bg-surface-sunken/50">
+      <td className="px-4 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <span className="text-foreground font-medium">{employee.full_name}</span>
+          <Badge tone={statusTone}>{status}</Badge>
+        </div>
+      </td>
       <td className="px-4 py-2.5 text-muted whitespace-nowrap">{employee.phone}</td>
       <td className="px-4 py-2.5">
         <select

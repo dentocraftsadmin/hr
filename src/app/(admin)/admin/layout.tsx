@@ -1,20 +1,10 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { logout } from "@/server/actions/auth";
-
-const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/employees", label: "Employees" },
-  { href: "/admin/points", label: "Compliance" },
-  { href: "/admin/leave", label: "Leave" },
-  { href: "/admin/holidays", label: "Holidays" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/offices", label: "Offices" },
-  { href: "/admin/shifts", label: "Shifts" },
-  { href: "/admin/departments", label: "Departments" },
-  { href: "/admin/designations", label: "Designations" },
-];
+import { Brand } from "@/components/shell/brand";
+import { SidebarNav } from "@/components/shell/sidebar-nav";
+import { MobileNav } from "@/components/shell/mobile-nav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // middleware.ts already verified this request is an authenticated admin
@@ -27,29 +17,39 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (role !== "admin") redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-surface">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="font-semibold text-foreground">CraftsHR · HR Console</span>
+    <div className="min-h-screen bg-background lg:flex">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:shrink-0 border-r border-sidebar-border bg-sidebar-bg">
+        <div className="px-4 py-5 border-b border-sidebar-border">
+          <Brand />
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <SidebarNav />
+        </div>
+        <div className="border-t border-sidebar-border p-3">
           <form action={logout}>
-            <button type="submit" className="text-sm text-muted underline">
+            <button
+              type="submit"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-bg-elevated"
+            >
+              <LogOut className="h-4 w-4 text-sidebar-muted" strokeWidth={2} />
               Sign out
             </button>
           </form>
         </div>
-        <nav className="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="px-3 py-2 text-sm font-medium text-muted hover:text-foreground border-b-2 border-transparent hover:border-primary whitespace-nowrap"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-      <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile top bar */}
+        <header className="lg:hidden sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-4 py-3">
+          <Brand size="sm" />
+          <MobileNav />
+        </header>
+
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 max-w-6xl w-full mx-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { correctAttendanceDay } from "@/server/actions/attendance-corrections";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Row = {
   id: string;
@@ -19,7 +21,13 @@ const DAY_TYPES = ["full_day", "half_day", "absent", "on_leave", "holiday", "wee
 
 export function FlaggedAttendanceList({ rows }: { rows: Row[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-muted">Nothing needs correction right now.</p>;
+    return (
+      <EmptyState
+        icon={CheckCircle2}
+        title="Nothing needs correction"
+        description="Incomplete punches and flagged attendance days will show up here."
+      />
+    );
   }
   return (
     <ul className="space-y-2">

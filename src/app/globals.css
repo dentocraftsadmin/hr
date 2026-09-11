@@ -1,36 +1,96 @@
 @import "tailwindcss";
 
 :root {
+  /* Base surfaces */
   --background: #f6f4ef;
   --surface: #ffffff;
+  --surface-sunken: #f1efe8;
   --foreground: #1e2320;
   --muted: #5c655f;
+  --muted-soft: #8b938c;
   --border: #ded9cb;
+  --border-strong: #c9c2ae;
+
+  /* Brand */
   --primary: #2f6f6a;
   --primary-strong: #1f4f4b;
   --primary-soft: #e3efec;
+
+  /* Semantic status */
+  --success: #3c7a4f;
+  --success-soft: #e4f0e6;
   --danger: #a3402f;
   --danger-soft: #f6e3dd;
   --warning: #a86a1f;
+  --warning-soft: #f5ead4;
+  --info: #3c6b96;
+  --info-soft: #e2ecf3;
+
+  /* Sidebar — a light, tinted surface distinct from the main content area
+     (not dark), so the DentoCrafts wordmark reads cleanly at the top of it.
+     Active items get a solid brand-color pill instead of relying on a dark
+     backdrop for contrast. */
+  --sidebar-bg: #eef2ee;
+  --sidebar-bg-elevated: #e4eae4;
+  --sidebar-foreground: #1e2320;
+  --sidebar-muted: #5c655f;
+  --sidebar-border: #d9e0d8;
+  --sidebar-active-bg: #2f6f6a;
+  --sidebar-active-foreground: #ffffff;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(24, 30, 28, 0.06);
+  --shadow-md: 0 4px 12px rgba(24, 30, 28, 0.08);
+  --shadow-lg: 0 12px 32px rgba(24, 30, 28, 0.14);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
   --color-primary-soft: var(--primary-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-bg-elevated: var(--sidebar-bg-elevated);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Focus visibility — kept consistent everywhere instead of per-component */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }

@@ -1,27 +1,30 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useImperativeHandle, useMemo, useRef, useState, useTransition, forwardRef } from "react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { createEmployee } from "@/server/actions/employees";
+import { Dialog, type DialogHandle } from "@/components/ui/dialog";
+import { Field, FormSection, Input, Select } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 type Option = { id: string; name: string };
 type Office = { id: string; name: string; default_shift_id: string | null };
 
-export function EmployeeCreateForm({
-  departments,
-  designations,
-  shifts,
-  offices,
-}: {
-  departments: Option[];
-  designations: Option[];
-  shifts: Option[];
-  offices: Office[];
-}) {
+export const EmployeeCreateDialog = forwardRef<
+  DialogHandle,
+  { departments: Option[]; designations: Option[]; shifts: Option[]; offices: Office[] }
+>(function EmployeeCreateDialog({ departments, designations, shifts, offices }, ref) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [officeId, setOfficeId] = useState("");
   const [shiftId, setShiftId] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const dialogRef = useRef<DialogHandle>(null);
+
+  useImperativeHandle(ref, () => ({
+    open: () => dialogRef.current?.open(),
+    close: () => dialogRef.current?.close(),
+  }));
 
   const defaultShiftForOffice = useMemo(
     () => offices.find((o) => o.id === officeId)?.default_shift_id ?? "",
@@ -45,115 +48,120 @@ export function EmployeeCreateForm({
       formRef.current?.reset();
       setOfficeId("");
       setShiftId("");
+      dialogRef.current?.close();
     });
   }
 
   return (
-    <form ref={formRef} action={onCreate} className="space-y-3 rounded-lg border border-border bg-surface p-4">
-      <h2 className="font-medium text-foreground">Add employee</h2>
+    <Dialog ref={dialogRef} title="Add employee">
+      <form ref={formRef} action={onCreate} className="space-y-6">
+        <FormSection title="Personal information">
+          <Field label="Full name" htmlFor="full_name" required>
+            <Input id="full_name" name="full_name" required placeholder="Jane Doe" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Mobile number" htmlFor="phone" required description="10 digits, no country code">
+              <Input id="phone" name="phone" required inputMode="numeric" maxLength={10} placeholder="9876543210" />
+            </Field>
+            <Field label="Birth year" htmlFor="birth_year" required>
+              <Input
+                id="birth_year"
+                name="birth_year"
+                type="number"
+                required
+                min={1940}
+                max={new Date().getFullYear()}
+                placeholder="1995"
+              />
+            </Field>
+          </div>
+        </FormSection>
 
-      <input
-        name="full_name"
-        required
-        placeholder="Full name"
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-      />
+        <FormSection title="Employment">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Joining date" htmlFor="joining_date" required>
+              <Input id="joining_date" name="joining_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+            </Field>
+            <Field label="Department" htmlFor="department_id" description="Optional">
+              <Select id="department_id" name="department_id" defaultValue="">
+                <option value="">None</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Designation" htmlFor="designation_id" description="Optional">
+            <Select id="designation_id" name="designation_id" defaultValue="">
+              <option value="">None</option>
+              {designations.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </Select>
+          </Field>
+        </FormSection>
 
-      <div className="flex gap-3">
-        <input
-          name="phone"
-          required
-          inputMode="numeric"
-          maxLength={10}
-          placeholder="10-digit mobile number"
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        />
-        <input
-          name="pin"
-          required
-          inputMode="numeric"
-          maxLength={4}
-          placeholder="Initial 4-digit PIN"
-          className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm tracking-widest"
-        />
-      </div>
+        <FormSection title="Work assignment">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Office" htmlFor="office_id" required>
+              <Select id="office_id" name="office_id" required value={officeId} onChange={(e) => onOfficeChange(e.target.value)}>
+                <option value="">Select office</option>
+                {offices.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field
+              label="Shift"
+              htmlFor="shift_id"
+              description={defaultShiftForOffice ? "Office default preselected" : "Optional"}
+            >
+              <Select id="shift_id" name="shift_id" value={shiftId} onChange={(e) => setShiftId(e.target.value)}>
+                <option value="">None</option>
+                {shifts.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </FormSection>
 
-      <div className="flex gap-3">
-        <input
-          name="birth_year"
-          type="number"
-          required
-          min={1940}
-          max={new Date().getFullYear()}
-          placeholder="Birth year"
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        />
-        <input
-          name="joining_date"
-          type="date"
-          required
-          defaultValue={new Date().toISOString().slice(0, 10)}
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        />
-      </div>
+        <FormSection title="Access">
+          <Field
+            label="Initial PIN"
+            htmlFor="pin"
+            required
+            description="Choose a 4-digit PIN and share it with the employee directly — nothing is sent automatically."
+          >
+            <Input id="pin" name="pin" required inputMode="numeric" maxLength={4} placeholder="••••" className="tracking-widest max-w-[8rem]" />
+          </Field>
+        </FormSection>
 
-      <div className="flex gap-3">
-        <select name="department_id" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-          <option value="">Department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-        <select name="designation_id" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-          <option value="">Designation</option>
-          {designations.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-      </div>
+        {error && <p role="alert" className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{error}</p>}
 
-      <div className="flex gap-3">
-        <select
-          name="office_id"
-          required
-          value={officeId}
-          onChange={(e) => onOfficeChange(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Office</option>
-          {offices.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-        <select
-          name="shift_id"
-          value={shiftId}
-          onChange={(e) => setShiftId(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Shift{defaultShiftForOffice ? " (office default preselected)" : ""}</option>
-          {shifts.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
+          <Button type="button" variant="secondary" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Create employee
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+});
 
-      {error && <p className="text-sm text-danger">{error}</p>}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-lg bg-primary text-white text-sm font-medium px-4 py-2 disabled:opacity-50"
-      >
-        {isPending ? "Creating…" : "Create employee"}
-      </button>
-    </form>
+export function AddEmployeeButton(props: { departments: Option[]; designations: Option[]; shifts: Option[]; offices: Office[] }) {
+  const ref = useRef<DialogHandle>(null);
+  return (
+    <>
+      <Button onClick={() => ref.current?.open()}>
+        <UserPlus className="h-4 w-4" />
+        Add employee
+      </Button>
+      <EmployeeCreateDialog ref={ref} {...props} />
+    </>
   );
 }
