@@ -12,11 +12,11 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<"rotate" | "disable" | null>(null);
 
-  function onRotate() {
+  function doRotate() {
     setError(null);
-    const isFirstTime = !code;
-    if (!isFirstTime && !window.confirm("Generate a new code? The current code will stop working immediately.")) return;
+    setConfirming(null);
     startTransition(async () => {
       const result = await rotateEnrollmentCode();
       if (!result.ok) {
@@ -27,9 +27,19 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
     });
   }
 
-  function onDisable() {
+  function onRotateClick() {
     setError(null);
-    if (!window.confirm("Turn off employee self-registration? Employees won't be able to create their own accounts until you generate a new code.")) return;
+    const isFirstTime = !code;
+    if (isFirstTime) {
+      doRotate();
+      return;
+    }
+    setConfirming("rotate");
+  }
+
+  function doDisable() {
+    setError(null);
+    setConfirming(null);
     startTransition(async () => {
       const result = await disableRegistration();
       if (!result.ok) {
@@ -38,6 +48,11 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
       }
       setCode(null);
     });
+  }
+
+  function onDisableClick() {
+    setError(null);
+    setConfirming("disable");
   }
 
   function onCopy() {
@@ -83,12 +98,38 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
 
       {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
 
+      {confirming === "rotate" && (
+        <p className="mt-2 text-xs text-muted">
+          The current code will stop working immediately.{" "}
+          <button onClick={doRotate} disabled={isPending} className="font-medium text-primary-strong hover:underline">
+            Generate new code
+          </button>{" "}
+          ·{" "}
+          <button onClick={() => setConfirming(null)} disabled={isPending} className="text-muted hover:underline">
+            Cancel
+          </button>
+        </p>
+      )}
+
+      {confirming === "disable" && (
+        <p className="mt-2 text-xs text-muted">
+          Employees won&rsquo;t be able to create their own accounts until you generate a new code.{" "}
+          <button onClick={doDisable} disabled={isPending} className="font-medium text-danger hover:underline">
+            Turn off registration
+          </button>{" "}
+          ·{" "}
+          <button onClick={() => setConfirming(null)} disabled={isPending} className="text-muted hover:underline">
+            Cancel
+          </button>
+        </p>
+      )}
+
       <div className="mt-3 flex gap-2">
-        <Button variant="secondary" size="sm" onClick={onRotate} disabled={isPending}>
+        <Button variant="secondary" size="sm" onClick={onRotateClick} disabled={isPending}>
           <RefreshCw className="h-3.5 w-3.5" /> {code ? "Generate new code" : "Enable registration"}
         </Button>
         {code && (
-          <Button variant="ghost" size="sm" onClick={onDisable} disabled={isPending}>
+          <Button variant="ghost" size="sm" onClick={onDisableClick} disabled={isPending}>
             <Ban className="h-3.5 w-3.5" /> Turn off
           </Button>
         )}
