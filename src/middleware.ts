@@ -66,6 +66,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)",
+    // api/cron/* is excluded here, not because it's public, but because it
+    // authenticates via CRON_SECRET (see lib/cron/auth.ts), not a Supabase
+    // session cookie — Vercel Cron and Supabase's pg_cron sweep never carry
+    // one, so leaving these matched would redirect every cron invocation to
+    // /login before requireCronSecret() ever runs.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|api/cron|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)",
   ],
 };
