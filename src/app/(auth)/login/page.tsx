@@ -40,7 +40,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex bg-background">
       {/* Brand panel — hidden on small screens */}
       <div className="hidden lg:flex lg:w-[44%] flex-col justify-between bg-primary-soft px-12 py-10">
-        <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={168} height={41} priority />
+        <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={168} height={41} priority unoptimized />
         <div>
           <h2 className="text-2xl font-semibold text-primary-strong tracking-tight">
             CraftsHR
@@ -67,7 +67,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex justify-center">
-            <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={140} height={34} priority />
+            <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={140} height={34} priority unoptimized />
           </div>
 
           <h1 className="text-xl font-semibold text-foreground">Sign in to CraftsHR</h1>

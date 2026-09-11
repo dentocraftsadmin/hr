@@ -22,7 +22,7 @@ export default async function RegisterPage() {
     <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
-          <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={140} height={34} priority />
+          <Image src="/dentocrafts-logo.png" alt="DentoCrafts" width={140} height={34} priority unoptimized />
         </div>
 
         {!canRegister ? (

@@ -14,6 +14,7 @@ export function Brand({ size = "md" }: { size?: "sm" | "md" }) {
         width={logoWidth}
         height={logoHeight}
         priority
+        unoptimized
         className="shrink-0"
       />
       <div className="h-7 w-px bg-border" aria-hidden="true" />
