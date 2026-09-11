@@ -1,0 +1,14 @@
+-- Smallest safe schema change to support employee self-registration: one
+-- nullable column on the existing app_settings singleton, holding a single
+-- shared company enrollment code. No new table is needed — the threat model
+-- here is "keep the public internet from creating accounts", not a
+-- per-employee audit trail, and this project has ~60 employees in one
+-- company (not multi-tenant), so a shared, admin-rotatable code is
+-- proportionate. Rotating the code is how an old one becomes invalid;
+-- there's no time-based expiry to track separately.
+--
+-- Registration itself still always writes profiles.role = 'employee' from
+-- server-side code that never reads a role from client input — this column
+-- only gates *whether* self-registration is allowed at all, not what role
+-- it produces.
+alter table app_settings add column if not exists employee_enrollment_code text;

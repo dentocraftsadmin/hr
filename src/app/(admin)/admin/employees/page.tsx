@@ -1,15 +1,18 @@
 import { listEmployees, listDepartments, listDesignations, listShifts, listOffices } from "@/lib/data/admin";
+import { getEnrollmentCode } from "@/server/actions/enrollment";
 import { AddEmployeeButton } from "@/components/admin/employee-create-form";
 import { EmployeeTable } from "@/components/admin/employee-table";
+import { EnrollmentCodeCard } from "@/components/admin/enrollment-code";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default async function EmployeesPage() {
-  const [employees, departments, designations, shifts, offices] = await Promise.all([
+  const [employees, departments, designations, shifts, offices, { code }] = await Promise.all([
     listEmployees(),
     listDepartments(),
     listDesignations(),
     listShifts(),
     listOffices(),
+    getEnrollmentCode(),
   ]);
 
   const activeDepartments = departments.filter((d) => d.is_active);
@@ -31,6 +34,11 @@ export default async function EmployeesPage() {
           />
         }
       />
+
+      <div className="mb-6 max-w-md">
+        <EnrollmentCodeCard initialCode={code} />
+      </div>
+
       <EmployeeTable
         employees={employees}
         departments={activeDepartments}

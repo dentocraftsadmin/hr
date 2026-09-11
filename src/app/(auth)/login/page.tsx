@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Eye, EyeOff, Loader2, ShieldCheck, Clock, Users } from "lucide-react";
 import { login } from "@/server/actions/auth";
 
@@ -136,6 +137,12 @@ export default function LoginPage() {
 
             <p className="text-xs text-muted text-center">
               Forgot your PIN? Ask HR to reset it for you.
+            </p>
+            <p className="text-xs text-muted text-center border-t border-border pt-4">
+              New here?{" "}
+              <Link href="/register" className="font-medium text-primary-strong hover:underline">
+                Create an account
+              </Link>
             </p>
           </form>
         </div>

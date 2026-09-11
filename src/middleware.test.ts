@@ -7,6 +7,7 @@ describe("middleware matcher", () => {
   it("matches ordinary pages", () => {
     expect(unstable_doesMiddlewareMatch({ config, url: "https://example.com/" })).toBe(true);
     expect(unstable_doesMiddlewareMatch({ config, url: "https://example.com/login" })).toBe(true);
+    expect(unstable_doesMiddlewareMatch({ config, url: "https://example.com/register" })).toBe(true);
     expect(unstable_doesMiddlewareMatch({ config, url: "https://example.com/admin" })).toBe(true);
   });
 
@@ -59,6 +60,23 @@ describe("middleware redirect behavior", () => {
     const response = await middleware(new NextRequest("https://example.com/dashboard"));
 
     expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("does not redirect an unauthenticated request to the public registration page", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: null } });
+
+    const response = await middleware(new NextRequest("https://example.com/register"));
+
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("sends an already-signed-in user away from the registration page", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { id: "emp-1" } } });
+
+    const response = await middleware(new NextRequest("https://example.com/register"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://example.com/dashboard");
   });
 });
 

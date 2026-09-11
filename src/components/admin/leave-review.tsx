@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { reviewLeaveRequest } from "@/server/actions/leave";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Card } from "@/components/ui/card";
 
 type Request = {
   id: string;
@@ -19,9 +22,15 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 export function LeaveReviewList({ requests }: { requests: Request[] }) {
+  if (requests.length === 0) {
+    return (
+      <Card>
+        <EmptyState icon={CheckCircle2} title="All caught up" description="No leave requests are waiting on your review." />
+      </Card>
+    );
+  }
   return (
     <ul className="space-y-2">
-      {requests.length === 0 && <p className="text-sm text-muted">Nothing pending.</p>}
       {requests.map((r) => (
         <ReviewRow key={r.id} request={r} />
       ))}
@@ -46,7 +55,7 @@ function ReviewRow({ request }: { request: Request }) {
   }
 
   return (
-    <li className="rounded-lg border border-border bg-surface p-4">
+    <li className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <p className="font-medium text-foreground">{employee?.full_name ?? "—"}</p>
       <p className="text-sm text-muted">
         {type?.name ?? "Leave"} · {request.from_date}

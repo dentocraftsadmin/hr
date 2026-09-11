@@ -3,16 +3,17 @@
 import { useState, useTransition } from "react";
 import { adjustScore } from "@/server/actions/points";
 import type { EmployeeScore } from "@/lib/data/points";
+import { Badge } from "@/components/ui/badge";
 
-function scoreColor(score: number): string {
-  if (score >= 90) return "text-primary-strong";
-  if (score >= 70) return "text-warning";
-  return "text-danger";
+function scoreTone(score: number): "success" | "warning" | "danger" {
+  if (score >= 90) return "success";
+  if (score >= 70) return "warning";
+  return "danger";
 }
 
 export function ScoreTable({ employees }: { employees: EmployeeScore[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -58,8 +59,10 @@ function ScoreRow({ employee }: { employee: EmployeeScore }) {
 
   return (
     <tr className="border-b border-border last:border-0 align-top">
-      <td className="px-4 py-2.5 text-foreground whitespace-nowrap">{employee.full_name}</td>
-      <td className={`px-4 py-2.5 font-semibold ${scoreColor(employee.score)}`}>{employee.score}</td>
+      <td className="px-4 py-2.5 text-foreground font-medium whitespace-nowrap">{employee.full_name}</td>
+      <td className="px-4 py-2.5">
+        <Badge tone={scoreTone(employee.score)}>{employee.score}</Badge>
+      </td>
       <td className="px-4 py-2.5">
         {!open ? (
           <button onClick={() => setOpen(true)} className="text-xs font-medium text-muted underline">
