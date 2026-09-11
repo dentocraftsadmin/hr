@@ -4,6 +4,16 @@ import { ShieldAlert } from "lucide-react";
 import { listActiveOfficesForRegistration, isRegistrationOpen } from "@/lib/data/registration";
 import { RegisterForm } from "@/components/auth/register-form";
 
+// This page reads live data (whether registration is open, which offices
+// exist) via the admin/service-role client, which has no cookies() call to
+// implicitly opt Next.js into dynamic rendering the way every other page's
+// createClient() does. Without this, Next tries to statically prerender it
+// at build time -- using the service-role client with no request context,
+// and showing stale office/registration-open state to every real visitor
+// until the next deploy. Both are wrong for a page whose whole job is to
+// reflect current HR-controlled state.
+export const dynamic = "force-dynamic";
+
 export default async function RegisterPage() {
   const [open, offices] = await Promise.all([isRegistrationOpen(), listActiveOfficesForRegistration()]);
   const canRegister = open && offices.length > 0;
