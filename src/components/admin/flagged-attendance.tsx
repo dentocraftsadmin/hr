@@ -66,7 +66,12 @@ function FlaggedRow({ row }: { row: Row }) {
       </p>
       <p className="text-xs text-muted">Currently: {row.day_type.replace("_", " ")}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <select value={dayType} onChange={(e) => setDayType(e.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-xs">
+        <select
+          value={dayType}
+          onChange={(e) => setDayType(e.target.value)}
+          aria-label="Corrected day type"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+        >
           {DAY_TYPES.map((t) => (
             <option key={t} value={t}>
               {t.replace("_", " ")}
@@ -79,12 +84,14 @@ function FlaggedRow({ row }: { row: Row }) {
           value={hours}
           onChange={(e) => setHours(e.target.value)}
           placeholder="Hours"
+          aria-label="Corrected hours worked"
           className="w-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
         />
         <input
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Reason (required)"
+          aria-label="Correction reason"
           className="w-56 rounded-md border border-border bg-background px-2 py-1 text-xs"
         />
         <button

@@ -69,6 +69,7 @@ export function EmployeeTable({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or phone"
+            aria-label="Search employees by name or phone"
             className="w-full rounded-lg border border-border bg-background pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -274,6 +275,7 @@ function EmployeeRow({
               value={resetPin}
               onChange={(e) => setResetPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               placeholder="New PIN"
+              aria-label={`New PIN for ${employee.full_name}`}
               className="w-20 rounded-md border border-border bg-background px-2 py-1 text-xs tracking-widest"
             />
             <button

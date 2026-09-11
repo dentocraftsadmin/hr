@@ -39,7 +39,7 @@ export default async function AdminLeavePage() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-3 max-w-lg">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg">
         <StatCard label="Pending" value={pending.length} icon={Hourglass} tone={pending.length > 0 ? "warning" : "neutral"} />
         <StatCard label="Approved" value={approved} icon={CheckCircle2} tone="success" />
         <StatCard label="Rejected" value={rejected} icon={XCircle} tone="neutral" />

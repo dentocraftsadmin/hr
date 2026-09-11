@@ -67,6 +67,7 @@ function ReviewRow({ request }: { request: Request }) {
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Note (optional)"
+        aria-label="Admin note for this leave request"
         className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
       />
       <div className="mt-2 flex gap-2">

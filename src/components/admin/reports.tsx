@@ -60,7 +60,7 @@ export function Reports({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-3 max-w-lg">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg">
         <StatCard label="Employees" value={employees.length} icon={Users} />
         <StatCard label="Departments" value={departments.length} icon={Building2} />
         <StatCard label="Offices" value={offices.length} icon={MapPin} />

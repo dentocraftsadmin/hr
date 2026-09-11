@@ -28,7 +28,7 @@ export default async function AdminPointsPage() {
       />
 
       {employees.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-6 max-w-lg">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 max-w-lg">
           <StatCard label="Average score" value={average} icon={ShieldCheck} />
           <StatCard label="Below 70" value={belowSeventy} icon={TrendingDown} tone={belowSeventy > 0 ? "danger" : "neutral"} />
           <StatCard label="Perfect score" value={perfect} icon={Award} tone={perfect > 0 ? "success" : "neutral"} />

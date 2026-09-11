@@ -75,12 +75,14 @@ function ScoreRow({ employee }: { employee: EmployeeScore }) {
               value={points}
               onChange={(e) => setPoints(e.target.value)}
               placeholder="±points"
+              aria-label={`Point adjustment for ${employee.full_name}`}
               className="w-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
             />
             <input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (required)"
+              aria-label="Reason for adjustment"
               className="w-48 rounded-md border border-border bg-background px-2 py-1 text-xs"
             />
             <button
