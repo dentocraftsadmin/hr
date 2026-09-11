@@ -6,6 +6,7 @@ import {
   listOwnLeaveRequests,
   getLeaveNoticeDays,
   getEmployeeWorkingDays,
+  getApplicableHolidayDates,
 } from "@/lib/data/leave";
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
 import { LeaveHistory } from "@/components/leave/leave-history";
@@ -15,12 +16,13 @@ export default async function EmployeeLeavePage() {
   if (!user) redirect("/login");
   if (!user.employee) redirect(user.role === "admin" ? "/admin" : "/login");
 
-  const [leaveTypes, holidays, requests, noticeDays, workingDays] = await Promise.all([
+  const [leaveTypes, holidays, requests, noticeDays, workingDays, applicableHolidayDates] = await Promise.all([
     listLeaveTypes(),
     listHolidays(),
     listOwnLeaveRequests(user.employee.id),
     getLeaveNoticeDays(),
     getEmployeeWorkingDays(user.employee.id),
+    getApplicableHolidayDates(user.employee.id),
   ]);
 
   return (
@@ -29,7 +31,7 @@ export default async function EmployeeLeavePage() {
         <LeaveRequestForm
           leaveTypes={leaveTypes}
           workingDays={workingDays}
-          holidayDates={holidays.map((h) => h.date)}
+          holidayDates={applicableHolidayDates}
           noticeDays={noticeDays}
         />
 

@@ -35,6 +35,25 @@ export async function getEmployeeWorkingDays(employeeId: string): Promise<number
   return shift?.working_days ?? [1, 2, 3, 4, 5];
 }
 
+/** Active holiday dates that actually apply to this employee — a
+ * company-wide holiday (applies_to_office_id is null), or one scoped to an
+ * office this employee is assigned to. Mirrors count_qualifying_notice_days()'s
+ * office-scoping exactly, so the live notice preview on the leave form
+ * can't count a holiday that doesn't apply to this employee. Deliberately
+ * separate from listHolidays(), which the same page also uses to show the
+ * *full* upcoming-holidays list regardless of office. */
+export async function getApplicableHolidayDates(employeeId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data: offices } = await supabase.from("employee_offices").select("office_id").eq("employee_id", employeeId);
+  const officeIds = (offices ?? []).map((o) => o.office_id);
+
+  const { data } = await supabase.from("holidays").select("date, applies_to_office_id").eq("is_active", true);
+
+  return (data ?? [])
+    .filter((h) => h.applies_to_office_id === null || officeIds.includes(h.applies_to_office_id))
+    .map((h) => h.date);
+}
+
 export async function listOwnLeaveRequests(employeeId: string) {
   const supabase = await createClient();
   const { data } = await supabase
