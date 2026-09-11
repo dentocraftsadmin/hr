@@ -34,11 +34,12 @@ describe("middleware matcher", () => {
   });
 });
 
-const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+const { getUser, getProfile } = vi.hoisted(() => ({ getUser: vi.fn(), getProfile: vi.fn() }));
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
     auth: { getUser },
+    from: () => ({ select: () => ({ eq: () => ({ single: getProfile }) }) }),
   }),
 }));
 
@@ -58,5 +59,48 @@ describe("middleware redirect behavior", () => {
     const response = await middleware(new NextRequest("https://example.com/dashboard"));
 
     expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe("verified-identity header forwarding", () => {
+  it("forwards the verified admin's id and role to the downstream request", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { id: "admin-1" } } });
+    getProfile.mockResolvedValueOnce({ data: { role: "admin" } });
+
+    const response = await middleware(new NextRequest("https://example.com/admin"));
+
+    expect(response.headers.get("x-middleware-request-x-craftshr-user-id")).toBe("admin-1");
+    expect(response.headers.get("x-middleware-request-x-craftshr-user-role")).toBe("admin");
+  });
+
+  it("cannot have its role header spoofed by a client-supplied value on a non-admin path", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { id: "emp-1" } } });
+
+    // A client tries to smuggle in its own value for the header AdminLayout
+    // trusts. Middleware never queries a role for a non-/admin path, so this
+    // must come out empty, not the client's injected "admin".
+    const response = await middleware(
+      new NextRequest("https://example.com/dashboard", {
+        headers: { "x-craftshr-user-role": "admin" },
+      })
+    );
+
+    expect(response.headers.get("x-middleware-request-x-craftshr-user-role")).toBe("");
+  });
+
+  it("cannot have its role header spoofed by a client-supplied value on an admin path either", async () => {
+    getUser.mockResolvedValueOnce({ data: { user: { id: "emp-1" } } });
+    getProfile.mockResolvedValueOnce({ data: { role: "employee" } });
+
+    const response = await middleware(
+      new NextRequest("https://example.com/admin/employees", {
+        headers: { "x-craftshr-user-role": "admin" },
+      })
+    );
+
+    // Not "admin" as the client tried to send — the real (redirecting)
+    // response short-circuits before any header is forwarded at all.
+    expect(response.status).toBe(307);
+    expect(response.headers.get("x-middleware-request-x-craftshr-user-role")).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/data/current-user";
 import { logout } from "@/server/actions/auth";
 
 const NAV = [
@@ -17,8 +17,14 @@ const NAV = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") redirect("/dashboard");
+  // middleware.ts already verified this request is an authenticated admin
+  // before it ever reaches this render — that's the real, unbypassable gate
+  // (every /admin/* request passes through it first). Reading the role it
+  // forwarded is a zero-cost sanity check on that guarantee, not a second
+  // independent verification: it never asks Supabase anything itself, so a
+  // regression here can't fail open the way a skipped check silently could.
+  const role = (await headers()).get("x-craftshr-user-role");
+  if (role !== "admin") redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-background">

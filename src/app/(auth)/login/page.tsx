@@ -23,8 +23,10 @@ export default function LoginPage() {
         setError(result.error);
         return;
       }
+      // router.replace() already performs a full fresh server fetch for a
+      // route with no prior client-side cache entry, so a follow-up
+      // router.refresh() here only re-fetches the same data a second time.
       router.replace(result.role === "admin" ? "/admin" : "/dashboard");
-      router.refresh();
     });
   }
 

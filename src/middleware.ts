@@ -3,8 +3,20 @@ import { createServerClient } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/login"];
 
+// Set by this middleware only, on every request that reaches a Server
+// Component render — never by a client. AdminLayout reads these instead of
+// re-verifying the session with Supabase a second time. Always written
+// (even to "" when there's no user), which overwrites any value a client
+// tried to send under these names before this request is forwarded, so
+// nothing downstream can be spoofed through them.
+const USER_ID_HEADER = "x-craftshr-user-id";
+const USER_ROLE_HEADER = "x-craftshr-user-role";
+
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  // Cookie refresh (a token renewal during getUser()) is collected here and
+  // replayed onto whichever response we end up returning, instead of being
+  // baked into a response object we might later discard.
+  let pendingCookies: { name: string; value: string; options?: Record<string, unknown> }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,10 +30,7 @@ export async function middleware(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
+          pendingCookies = cookiesToSet;
         },
       },
     }
@@ -42,13 +51,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  let role: string | null = null;
   if (user && path.startsWith("/admin")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin") {
+    role = profile?.role ?? null;
+    if (role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
@@ -61,6 +72,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(USER_ID_HEADER, user?.id ?? "");
+  requestHeaders.set(USER_ROLE_HEADER, role ?? "");
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const { name, value, options } of pendingCookies) {
+    response.cookies.set(name, value, options);
+  }
   return response;
 }
 
