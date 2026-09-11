@@ -16,40 +16,23 @@ export async function listHolidays() {
   return data ?? [];
 }
 
-function daysBetween(from: string, to: string, isHalfDay: boolean): number {
-  if (isHalfDay) return 0.5;
-  const ms = new Date(to).getTime() - new Date(from).getTime();
-  return Math.round(ms / 86400000) + 1;
+/** null means the notice-period rule isn't configured — leave is never
+ * scored on timing until HR sets this. */
+export async function getLeaveNoticeDays(): Promise<number | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("app_settings").select("leave_notice_days").eq("id", 1).single();
+  return data?.leave_notice_days ?? null;
 }
 
-export type LeaveBalance = { leaveTypeId: string; name: string; quota: number; used: number; remaining: number };
-
-/** Remaining balance is always computed from approved requests, never a
- * stored counter — see architecture notes on why. */
-export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance[]> {
+/** The employee's own shift working days, for the live notice-period
+ * preview on the leave request form — same working_days used by
+ * finalize_attendance_day() and count_qualifying_notice_days() server-side. */
+export async function getEmployeeWorkingDays(employeeId: string): Promise<number[]> {
   const supabase = await createClient();
-  const year = new Date().getFullYear();
-
-  const [{ data: types }, { data: overrides }, { data: approved }] = await Promise.all([
-    supabase.from("leave_types").select("*").eq("is_active", true).order("name"),
-    supabase.from("employee_leave_balances").select("*").eq("employee_id", employeeId).eq("year", year),
-    supabase
-      .from("leave_requests")
-      .select("leave_type_id, from_date, to_date, is_half_day")
-      .eq("employee_id", employeeId)
-      .eq("status", "approved")
-      .gte("from_date", `${year}-01-01`)
-      .lte("from_date", `${year}-12-31`),
-  ]);
-
-  return (types ?? []).map((type) => {
-    const override = overrides?.find((o) => o.leave_type_id === type.id);
-    const quota = override?.quota ?? type.annual_quota;
-    const used = (approved ?? [])
-      .filter((r) => r.leave_type_id === type.id)
-      .reduce((sum, r) => sum + daysBetween(r.from_date, r.to_date, r.is_half_day), 0);
-    return { leaveTypeId: type.id, name: type.name, quota, used, remaining: quota - used };
-  });
+  const { data: employee } = await supabase.from("employees").select("shift_id").eq("id", employeeId).single();
+  if (!employee?.shift_id) return [1, 2, 3, 4, 5]; // no shift assigned yet — mirror the server-side fallback
+  const { data: shift } = await supabase.from("shifts").select("working_days").eq("id", employee.shift_id).single();
+  return shift?.working_days ?? [1, 2, 3, 4, 5];
 }
 
 export async function listOwnLeaveRequests(employeeId: string) {

@@ -1,6 +1,9 @@
-import { Hourglass, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
+import Link from "next/link";
+import { Hourglass, CheckCircle2, XCircle, CalendarDays, Info } from "lucide-react";
 import { listAllLeaveRequests } from "@/lib/data/leave";
+import { getLeaveNoticePolicy } from "@/server/actions/leave-policy";
 import { LeaveReviewList } from "@/components/admin/leave-review";
+import { LeaveNoticePolicyCard } from "@/components/admin/leave-notice-policy";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
@@ -15,7 +18,11 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
 };
 
 export default async function AdminLeavePage() {
-  const [pending, recent] = await Promise.all([listAllLeaveRequests("pending"), listAllLeaveRequests()]);
+  const [pending, recent, { days }] = await Promise.all([
+    listAllLeaveRequests("pending"),
+    listAllLeaveRequests(),
+    getLeaveNoticePolicy(),
+  ]);
 
   const approved = recent.filter((r) => r.status === "approved").length;
   const rejected = recent.filter((r) => r.status === "rejected").length;
@@ -25,12 +32,21 @@ export default async function AdminLeavePage() {
       <PageHeader
         title="Leave"
         description="Review pending requests and keep track of approvals across the team."
+        actions={
+          <Link href="/rules#leave" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary-strong">
+            <Info className="h-4 w-4" /> How leave is scored
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3 max-w-lg">
         <StatCard label="Pending" value={pending.length} icon={Hourglass} tone={pending.length > 0 ? "warning" : "neutral"} />
         <StatCard label="Approved" value={approved} icon={CheckCircle2} tone="success" />
         <StatCard label="Rejected" value={rejected} icon={XCircle} tone="neutral" />
+      </div>
+
+      <div className="max-w-lg">
+        <LeaveNoticePolicyCard initialDays={days} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">

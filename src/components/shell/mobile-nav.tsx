@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { Menu, X, HelpCircle, LogOut } from "lucide-react";
+import { logout } from "@/server/actions/auth";
 import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -39,6 +41,25 @@ export function MobileNav() {
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-4">
             <SidebarNav onNavigate={() => dialogRef.current?.close()} />
+          </div>
+          <div className="border-t border-sidebar-border p-3 space-y-0.5">
+            <Link
+              href="/rules"
+              onClick={() => dialogRef.current?.close()}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-bg-elevated"
+            >
+              <HelpCircle className="h-4 w-4 text-sidebar-muted" strokeWidth={2} />
+              Rules &amp; Policies
+            </Link>
+            <form action={logout}>
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-bg-elevated"
+              >
+                <LogOut className="h-4 w-4 text-sidebar-muted" strokeWidth={2} />
+                Sign out
+              </button>
+            </form>
           </div>
         </div>
       </dialog>

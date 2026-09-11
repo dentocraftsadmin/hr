@@ -1,4 +1,5 @@
-import { ShieldCheck, TrendingDown, Award } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, TrendingDown, Award, Info } from "lucide-react";
 import { listEmployeeScores } from "@/lib/data/points";
 import { ScoreTable } from "@/components/admin/score-table";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,6 +20,11 @@ export default async function AdminPointsPage() {
       <PageHeader
         title="Compliance"
         description="0–100 compliance scores, computed automatically from attendance. Adjustments require a reason and stay visible to the employee."
+        actions={
+          <Link href="/rules#score" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary-strong">
+            <Info className="h-4 w-4" /> How scoring works
+          </Link>
+        }
       />
 
       {employees.length > 0 && (

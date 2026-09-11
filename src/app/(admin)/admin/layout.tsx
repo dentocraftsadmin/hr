@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, HelpCircle } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { Brand } from "@/components/shell/brand";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -26,7 +27,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="flex-1 overflow-y-auto px-3 py-4">
           <SidebarNav />
         </div>
-        <div className="border-t border-sidebar-border p-3">
+        <div className="border-t border-sidebar-border p-3 space-y-0.5">
+          <Link
+            href="/rules"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-bg-elevated"
+          >
+            <HelpCircle className="h-4 w-4 text-sidebar-muted" strokeWidth={2} />
+            Rules &amp; Policies
+          </Link>
           <form action={logout}>
             <button
               type="submit"
