@@ -1,15 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { registerEmployeeSchema } from "./registration";
 
+const validPushSubscription = {
+  endpoint: "https://fcm.googleapis.com/fcm/send/abc123",
+  keys: { p256dh: "p256dh-key-value", auth: "auth-key-value" },
+};
+
 const validInput = {
   full_name: "Jane Doe",
   phone: "9876543210",
   enrollment_code: "ABCD1234",
   birth_year: 1995,
+  birth_month: 6,
+  birth_day: 15,
   joining_date: "2026-01-15",
   office_id: "8f14e45f-ceea-467e-9575-9e0f6a5f2b9b",
   pin: "1234",
   confirm_pin: "1234",
+  push_subscription: validPushSubscription,
 };
 
 describe("registerEmployeeSchema", () => {
@@ -60,5 +68,38 @@ describe("registerEmployeeSchema", () => {
 
   it("rejects an invalid phone number", () => {
     expect(registerEmployeeSchema.safeParse({ ...validInput, phone: "12345" }).success).toBe(false);
+  });
+
+  it("requires a push subscription — mandatory notification setup is enforced here, not only in the UI", () => {
+    const { push_subscription: _omit, ...withoutPush } = validInput;
+    void _omit;
+    expect(registerEmployeeSchema.safeParse(withoutPush).success).toBe(false);
+  });
+
+  it("rejects a malformed push subscription (a client-side bypass attempt can't fake the shape)", () => {
+    expect(
+      registerEmployeeSchema.safeParse({ ...validInput, push_subscription: { endpoint: "not-a-url" } }).success
+    ).toBe(false);
+    expect(
+      registerEmployeeSchema.safeParse({ ...validInput, push_subscription: { endpoint: "https://example.com", keys: {} } })
+        .success
+    ).toBe(false);
+  });
+
+  it("rejects a birth day that doesn't exist in the given month", () => {
+    const result = registerEmployeeSchema.safeParse({ ...validInput, birth_month: 2, birth_day: 30 });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["birth_day"]);
+    }
+  });
+
+  it("accepts Feb 29 (the schema treats it as always shape-valid; leap-year specifics are a display concern)", () => {
+    expect(registerEmployeeSchema.safeParse({ ...validInput, birth_month: 2, birth_day: 29 }).success).toBe(true);
+  });
+
+  it("rejects an out-of-range birth month", () => {
+    expect(registerEmployeeSchema.safeParse({ ...validInput, birth_month: 13 }).success).toBe(false);
+    expect(registerEmployeeSchema.safeParse({ ...validInput, birth_month: 0 }).success).toBe(false);
   });
 });

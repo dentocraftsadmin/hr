@@ -6,6 +6,7 @@ const DEFAULTS = {
   remind_punch_in_minutes_before: 15,
   remind_punch_out: true,
   remind_missed_punch: true,
+  remind_missed_punch_out: true,
 };
 
 export async function getNotificationPreferences(employeeId: string) {

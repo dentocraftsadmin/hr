@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode } from "react";
 
 const controlClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground " +
@@ -38,6 +38,11 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   const { className = "", ...rest } = props;
   return <select className={`${controlClass} ${className}`} {...rest} />;
+}
+
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const { className = "", ...rest } = props;
+  return <textarea className={`${controlClass} resize-none ${className}`} {...rest} />;
 }
 
 export function FormSection({ title, children }: { title: string; children: ReactNode }) {

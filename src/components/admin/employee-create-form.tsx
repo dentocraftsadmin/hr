@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/button";
 type Option = { id: string; name: string };
 type Office = { id: string; name: string; default_shift_id: string | null };
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 export const EmployeeCreateDialog = forwardRef<
   DialogHandle,
   { departments: Option[]; designations: Option[]; shifts: Option[]; offices: Office[] }
@@ -59,9 +64,20 @@ export const EmployeeCreateDialog = forwardRef<
           <Field label="Full name" htmlFor="full_name" required>
             <Input id="full_name" name="full_name" required placeholder="Jane Doe" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Mobile number" htmlFor="phone" required description="10 digits, no country code">
-              <Input id="phone" name="phone" required inputMode="numeric" maxLength={10} placeholder="9876543210" />
+          <Field label="Mobile number" htmlFor="phone" required description="10 digits, no country code">
+            <Input id="phone" name="phone" required inputMode="numeric" maxLength={10} placeholder="9876543210" />
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Birth month" htmlFor="birth_month" required>
+              <Select id="birth_month" name="birth_month" required defaultValue="">
+                <option value="" disabled>Month</option>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Birth day" htmlFor="birth_day" required>
+              <Input id="birth_day" name="birth_day" type="number" required min={1} max={31} placeholder="15" />
             </Field>
             <Field label="Birth year" htmlFor="birth_year" required>
               <Input

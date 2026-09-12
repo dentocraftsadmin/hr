@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToEmployee } from "@/lib/notifications/send";
 import { minutesSinceMidnight, timeToMinutes } from "@/lib/notifications/time";
 
-type ReminderType = "punch_in_reminder" | "punch_out_reminder" | "missed_punch_reminder";
+type ReminderType = "punch_in_reminder" | "punch_out_reminder" | "missed_punch_reminder" | "missed_punch_out_reminder";
 
 function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
     .select(
       `id,
        shift:shifts(start_time, end_time, working_days),
-       notification_preferences(push_enabled, remind_punch_in, remind_punch_in_minutes_before, remind_punch_out, remind_missed_punch),
+       notification_preferences(push_enabled, remind_punch_in, remind_punch_in_minutes_before, remind_punch_out, remind_missed_punch, remind_missed_punch_out),
+       employee_offices(office_id),
        attendance_days(punch_in_event_id, punch_out_event_id, date)`
     )
     .eq("employment_status", "active");
@@ -46,6 +47,9 @@ export async function GET(request: NextRequest) {
     .gte("to_date", today);
   const onLeaveIds = new Set((approvedLeaveToday ?? []).map((r) => r.employee_id));
   const companyWideHoliday = (holidaysToday ?? []).some((h) => h.applies_to_office_id === null);
+  const holidayOfficeIds = new Set(
+    (holidaysToday ?? []).map((h) => h.applies_to_office_id).filter((id): id is string => id !== null)
+  );
 
   const { data: alreadySent } = await admin.from("notification_log").select("employee_id, type").eq("date", today);
   const sentSet = new Set((alreadySent ?? []).map((r) => `${r.employee_id}:${r.type}`));
@@ -58,7 +62,9 @@ export async function GET(request: NextRequest) {
 
     const shift = one(emp.shift);
     if (!shift || !shift.working_days.includes(dow)) continue;
-    if (companyWideHoliday || onLeaveIds.has(emp.id)) continue;
+    const employeeOfficeIds = (emp.employee_offices ?? []).map((o) => o.office_id);
+    const officeHoliday = employeeOfficeIds.some((id) => holidayOfficeIds.has(id));
+    if (companyWideHoliday || officeHoliday || onLeaveIds.has(emp.id)) continue;
 
     const todayRow = (emp.attendance_days ?? []).find((d) => d.date === today);
     const shiftStart = timeToMinutes(shift.start_time);
@@ -80,8 +86,13 @@ export async function GET(request: NextRequest) {
       if (prefs.remind_missed_punch && nowMinutes >= shiftStart + 30) {
         await trySend("missed_punch_reminder", "You haven't punched in", "Your shift started a while ago and there's no punch-in yet.");
       }
-    } else if (!todayRow.punch_out_event_id && prefs.remind_punch_out && nowMinutes >= shiftEnd) {
-      await trySend("punch_out_reminder", "Time to punch out", "Your shift has ended — don't forget to punch out.");
+    } else if (!todayRow.punch_out_event_id) {
+      if (prefs.remind_punch_out && nowMinutes >= shiftEnd) {
+        await trySend("punch_out_reminder", "Time to punch out", "Your shift has ended — don't forget to punch out.");
+      }
+      if (prefs.remind_missed_punch_out && nowMinutes >= shiftEnd + 30) {
+        await trySend("missed_punch_out_reminder", "You haven't punched out", "Your shift ended a while ago and there's no punch-out yet.");
+      }
     }
   }
 

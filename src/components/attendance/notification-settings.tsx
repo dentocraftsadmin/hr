@@ -10,6 +10,7 @@ type Preferences = {
   remind_punch_in_minutes_before: number;
   remind_punch_out: boolean;
   remind_missed_punch: boolean;
+  remind_missed_punch_out: boolean;
 };
 
 export function NotificationSettings({ preferences }: { preferences: Preferences }) {
@@ -22,8 +23,12 @@ export function NotificationSettings({ preferences }: { preferences: Preferences
     startTransition(async () => {
       try {
         if (!enabled) {
-          const subscription = await subscribeToPush();
-          const result = await savePushSubscription(subscription);
+          const subscribed = await subscribeToPush();
+          if (!subscribed.ok) {
+            setError(subscribed.message);
+            return;
+          }
+          const result = await savePushSubscription(subscribed.subscription);
           if (!result.ok) throw new Error(result.error);
           setEnabled(true);
         } else {
@@ -86,6 +91,10 @@ export function NotificationSettings({ preferences }: { preferences: Preferences
           <label className="flex items-center justify-between">
             <span className="text-muted">Alert me if I forget to punch in</span>
             <input type="checkbox" name="remind_missed_punch" defaultChecked={preferences.remind_missed_punch} />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-muted">Alert me if I forget to punch out</span>
+            <input type="checkbox" name="remind_missed_punch_out" defaultChecked={preferences.remind_missed_punch_out} />
           </label>
           <input type="hidden" name="push_enabled" value="on" />
           <button type="submit" className="text-xs font-medium text-primary-strong underline">

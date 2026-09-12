@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { toE164 } from "@/lib/auth/phone";
 import { toAuthPassword } from "@/lib/auth/pin";
 import { registerEmployeeSchema } from "@/lib/validation/registration";
+import { sendPushToEmployee } from "@/lib/notifications/send";
 import type { ActionResult } from "./auth";
 
 /**
@@ -25,15 +26,26 @@ import type { ActionResult } from "./auth";
  * pattern if a later step fails after an earlier one already wrote a row.
  */
 export async function registerEmployee(formData: FormData): Promise<ActionResult> {
+  let pushSubscription: unknown = null;
+  try {
+    const raw = formData.get("push_subscription");
+    pushSubscription = raw ? JSON.parse(raw as string) : null;
+  } catch {
+    return { ok: false, error: "Notification setup is required before you can create an account." };
+  }
+
   const parsed = registerEmployeeSchema.safeParse({
     full_name: formData.get("full_name"),
     phone: formData.get("phone"),
     enrollment_code: formData.get("enrollment_code"),
     birth_year: formData.get("birth_year"),
+    birth_month: formData.get("birth_month"),
+    birth_day: formData.get("birth_day"),
     joining_date: formData.get("joining_date"),
     office_id: formData.get("office_id"),
     pin: formData.get("pin"),
     confirm_pin: formData.get("confirm_pin"),
+    push_subscription: pushSubscription,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const data = parsed.data;
@@ -57,6 +69,8 @@ export async function registerEmployee(formData: FormData): Promise<ActionResult
       full_name: data.full_name,
       phone: data.phone,
       birth_year: data.birth_year,
+      birth_month: data.birth_month,
+      birth_day: data.birth_day,
       joining_date: data.joining_date,
     })
     .select("id")
@@ -78,6 +92,30 @@ export async function registerEmployee(formData: FormData): Promise<ActionResult
     await admin.from("employees").delete().eq("id", employee.id);
     return { ok: false, error: "Could not assign your office. Try again." };
   }
+
+  // Mandatory: the schema requires this field, so a request that reached
+  // here already has a shaped subscription -- but the insert itself is the
+  // real gate. If it fails, the whole account creation rolls back rather
+  // than leaving a registered employee with no way to receive reminders.
+  const { error: pushError } = await admin.from("push_subscriptions").insert({
+    employee_id: employee.id,
+    endpoint: data.push_subscription.endpoint,
+    p256dh: data.push_subscription.keys.p256dh,
+    auth_key: data.push_subscription.keys.auth,
+  });
+  if (pushError) {
+    await admin.from("employees").delete().eq("id", employee.id);
+    return {
+      ok: false,
+      error: pushError.message.includes("duplicate")
+        ? "That device is already subscribed to another account. Try a different device or browser."
+        : "Could not set up notifications for your account. Try again.",
+    };
+  }
+  // Otherwise the reminder-sweep skips this employee entirely until they
+  // separately visit the dashboard toggle -- the subscription would exist
+  // but push_enabled would still default to false.
+  await admin.from("notification_preferences").insert({ employee_id: employee.id, push_enabled: true });
 
   const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     phone: toE164(data.phone),
@@ -107,6 +145,15 @@ export async function registerEmployee(formData: FormData): Promise<ActionResult
     action: "employee.self_register",
     entity_table: "employees",
     entity_id: employee.id,
+  });
+
+  // Best-effort confirmation ping -- the account is already fully created
+  // and the subscription already stored, so a failure here (dead endpoint,
+  // push service hiccup) must never turn a successful registration into an
+  // error. sendPushToEmployee already swallows its own failures.
+  await sendPushToEmployee(employee.id, {
+    title: "CraftsHR",
+    body: "CraftsHR notifications are working.",
   });
 
   return { ok: true };

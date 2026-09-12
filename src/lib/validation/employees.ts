@@ -6,6 +6,8 @@ export const createEmployeeSchema = z.object({
   phone: phoneSchema,
   pin: pinSchema,
   birth_year: z.coerce.number().int().min(1940).max(new Date().getFullYear()),
+  birth_month: z.coerce.number().int().min(1, "Pick a birth month").max(12),
+  birth_day: z.coerce.number().int().min(1, "Pick a birth day").max(31),
   department_id: z.uuid().optional().or(z.literal("")),
   designation_id: z.uuid().optional().or(z.literal("")),
   shift_id: z.uuid().optional().or(z.literal("")),

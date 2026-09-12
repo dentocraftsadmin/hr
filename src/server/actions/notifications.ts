@@ -66,6 +66,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
     remind_punch_in_minutes_before: formData.get("remind_punch_in_minutes_before"),
     remind_punch_out: formData.get("remind_punch_out") === "on",
     remind_missed_punch: formData.get("remind_missed_punch") === "on",
+    remind_missed_punch_out: formData.get("remind_missed_punch_out") === "on",
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 

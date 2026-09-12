@@ -1,11 +1,14 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, ShieldCheck, Clock, Users } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, Clock, Users, Fingerprint } from "lucide-react";
 import { login } from "@/server/actions/auth";
+import { NumericKeypad } from "@/components/ui/numeric-keypad";
+import { createClient } from "@/lib/supabase/client";
+import { hasQuickUnlockSession, tryQuickUnlockLogin, clearQuickUnlockSession } from "@/lib/webauthn/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,8 +17,19 @@ export default function LoginPage() {
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const phoneId = useId();
-  const pinId = useId();
+  const [quickUnlockAvailable, setQuickUnlockAvailable] = useState(false);
+  const [quickUnlockMessage, setQuickUnlockMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (phone.length !== 10) return;
+    let cancelled = false;
+    hasQuickUnlockSession(phone).then((v) => {
+      if (!cancelled) setQuickUnlockAvailable(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [phone]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +47,30 @@ export default function LoginPage() {
       // route with no prior client-side cache entry, so a follow-up
       // router.refresh() here only re-fetches the same data a second time.
       router.replace(result.role === "admin" ? "/admin" : "/dashboard");
+    });
+  }
+
+  function onUseQuickUnlock() {
+    setQuickUnlockMessage(null);
+    startTransition(async () => {
+      const result = await tryQuickUnlockLogin(phone);
+      if (!result.ok) {
+        setQuickUnlockMessage(result.message);
+        if (result.reason === "not_configured") setQuickUnlockAvailable(false);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data, error: refreshError } = await supabase.auth.refreshSession({ refresh_token: result.refreshToken });
+      if (refreshError || !data.session) {
+        await clearQuickUnlockSession(phone);
+        setQuickUnlockAvailable(false);
+        setQuickUnlockMessage("Your quick unlock session expired — please sign in with your PIN.");
+        return;
+      }
+      // Quick unlock is employee-only by construction (webauthn_credentials
+      // always belongs to an employee, never an admin-only account).
+      router.replace("/dashboard");
     });
   }
 
@@ -73,51 +111,42 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold text-foreground">Sign in to CraftsHR</h1>
           <p className="mt-1 text-sm text-muted">Enter your phone number and PIN to continue.</p>
 
-          <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
+          <form onSubmit={onSubmit} noValidate className="mt-6 space-y-5">
             <div>
-              <label htmlFor={phoneId} className="block text-sm font-medium text-foreground mb-1.5">
-                Mobile number
-              </label>
-              <input
-                id={phoneId}
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                maxLength={10}
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-foreground tracking-wide focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="9876543210"
-              />
+              <p className="block text-sm font-medium text-foreground mb-1.5">Mobile number</p>
+              <NumericKeypad value={phone} onChange={setPhone} maxLength={10} label="Mobile number" />
             </div>
 
+            {quickUnlockAvailable && phone.length === 10 && (
+              <div className="rounded-lg border border-primary/30 bg-primary-soft/50 p-3 text-center">
+                <button
+                  type="button"
+                  onClick={onUseQuickUnlock}
+                  disabled={isPending}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-white font-medium py-2 px-4 text-sm disabled:opacity-50 hover:bg-primary-strong"
+                >
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+                  Use quick unlock
+                </button>
+                <p className="mt-1.5 text-xs text-muted">or sign in with your PIN below</p>
+              </div>
+            )}
+            {quickUnlockMessage && <p className="text-xs text-danger text-center">{quickUnlockMessage}</p>}
+
             <div>
-              <label htmlFor={pinId} className="block text-sm font-medium text-foreground mb-1.5">
-                4-digit PIN
-              </label>
-              <div className="relative">
-                <input
-                  id={pinId}
-                  type={showPin ? "text" : "password"}
-                  inputMode="numeric"
-                  autoComplete="current-password"
-                  maxLength={4}
-                  required
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 pr-10 text-foreground tracking-[0.5em] text-center text-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="••••"
-                />
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-sm font-medium text-foreground">4-digit PIN</p>
                 <button
                   type="button"
                   onClick={() => setShowPin((v) => !v)}
                   aria-label={showPin ? "Hide PIN" : "Show PIN"}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-foreground"
+                  className="flex items-center gap-1 text-xs text-muted hover:text-foreground"
                 >
-                  {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showPin ? "Hide" : "Show"}
                 </button>
               </div>
+              <NumericKeypad value={pin} onChange={setPin} maxLength={4} mask={!showPin} label="4-digit PIN" />
             </div>
 
             {error && (

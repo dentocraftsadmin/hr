@@ -5,28 +5,64 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-export async function subscribeToPush(): Promise<PushSubscriptionJSON> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    throw new Error("Push notifications aren't supported on this browser.");
-  }
+export type SubscribeResult =
+  | { ok: true; subscription: PushSubscriptionJSON }
+  | { ok: false; reason: "unsupported" | "denied" | "error"; message: string };
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    throw new Error("Notification permission was not granted.");
+/** Never throws — every failure mode a caller needs to render distinctly
+ * (unsupported browser vs. permission denied vs. anything else) comes back
+ * as a typed result instead of an error message to string-match against. */
+export async function subscribeToPush(): Promise<SubscribeResult> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return { ok: false, reason: "unsupported", message: "This browser or device doesn't support push notifications." };
   }
-
-  const registration = await navigator.serviceWorker.register("/sw.js");
-  await navigator.serviceWorker.ready;
 
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) throw new Error("Push notifications aren't configured.");
+  if (!publicKey) {
+    return { ok: false, reason: "error", message: "Push notifications aren't configured on this server." };
+  }
 
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-  });
+  // Checking permission first (rather than jumping straight to
+  // requestPermission) means a browser that already denied it in a past
+  // visit gets the same clear "denied" message without ever hanging on a
+  // one-shot prompt the browser refuses to show again.
+  if (Notification.permission === "denied") {
+    return {
+      ok: false,
+      reason: "denied",
+      message: "Notifications are blocked for this site. Enable them in your browser/device settings, then try again.",
+    };
+  }
 
-  return subscription.toJSON();
+  let permission: NotificationPermission;
+  try {
+    permission = await Notification.requestPermission();
+  } catch {
+    return { ok: false, reason: "error", message: "Couldn't request notification permission." };
+  }
+  if (permission !== "granted") {
+    return {
+      ok: false,
+      reason: "denied",
+      message: "Notifications are blocked for this site. Enable them in your browser/device settings, then try again.",
+    };
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+    });
+    return { ok: true, subscription: subscription.toJSON() };
+  } catch (e) {
+    return {
+      ok: false,
+      reason: "error",
+      message: e instanceof Error ? e.message : "Could not set up push notifications.",
+    };
+  }
 }
 
 export async function unsubscribeFromPush(): Promise<string | null> {

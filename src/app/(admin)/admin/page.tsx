@@ -1,6 +1,8 @@
 import { Users, LogIn, AlarmClock, CalendarClock, TrendingDown, Archive } from "lucide-react";
 import { getDashboardStats, listFlaggedAttendanceDays, listRecentArchiveJobs } from "@/lib/data/dashboard";
+import { getUpcomingBirthdays } from "@/lib/data/birthdays";
 import { FlaggedAttendanceList } from "@/components/admin/flagged-attendance";
+import { UpcomingBirthdays } from "@/components/shared/upcoming-birthdays";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
@@ -15,10 +17,11 @@ const JOB_STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutra
 };
 
 export default async function AdminDashboardPage() {
-  const [stats, flagged, archiveJobs] = await Promise.all([
+  const [stats, flagged, archiveJobs, birthdays] = await Promise.all([
     getDashboardStats(),
     listFlaggedAttendanceDays(),
     listRecentArchiveJobs(),
+    getUpcomingBirthdays(),
   ]);
 
   return (
@@ -60,6 +63,8 @@ export default async function AdminDashboardPage() {
           <FlaggedAttendanceList rows={flagged} />
         </Card>
       </div>
+
+      <UpcomingBirthdays birthdays={birthdays} />
 
       {archiveJobs.length > 0 && (
         <div>

@@ -3,10 +3,13 @@ import { getCurrentUser } from "@/lib/data/current-user";
 import { getTodayAttendance } from "@/lib/data/attendance";
 import { getComplianceScore, getPointsHistory } from "@/lib/data/points";
 import { getNotificationPreferences } from "@/lib/data/notifications";
+import { getUpcomingBirthdays } from "@/lib/data/birthdays";
 import { logout } from "@/server/actions/auth";
 import { PunchFlow } from "@/components/attendance/punch-flow";
 import { ScoreCard } from "@/components/attendance/score-card";
 import { NotificationSettings } from "@/components/attendance/notification-settings";
+import { QuickUnlockCard } from "@/components/attendance/quick-unlock-card";
+import { UpcomingBirthdays } from "@/components/shared/upcoming-birthdays";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -19,11 +22,12 @@ export default async function DashboardPage() {
     redirect(user.role === "admin" ? "/admin" : "/login");
   }
 
-  const [today, score, history, preferences] = await Promise.all([
+  const [today, score, history, preferences, birthdays] = await Promise.all([
     getTodayAttendance(user.employee.id),
     getComplianceScore(user.employee.id),
     getPointsHistory(user.employee.id),
     getNotificationPreferences(user.employee.id),
+    getUpcomingBirthdays(),
   ]);
 
   return (
@@ -52,7 +56,11 @@ export default async function DashboardPage() {
 
         <ScoreCard score={score} history={history} />
 
+        <UpcomingBirthdays birthdays={birthdays} />
+
         <NotificationSettings preferences={preferences} />
+
+        <QuickUnlockCard phone={user.employee.phone} />
 
         <form action={logout}>
           <button

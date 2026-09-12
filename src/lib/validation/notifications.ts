@@ -14,4 +14,5 @@ export const notificationPreferencesSchema = z.object({
   remind_punch_in_minutes_before: z.coerce.number().int().min(0).max(120),
   remind_punch_out: z.boolean(),
   remind_missed_punch: z.boolean(),
+  remind_missed_punch_out: z.boolean(),
 });

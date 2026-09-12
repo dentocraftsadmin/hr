@@ -9,6 +9,7 @@ import {
   Clock,
   MapPin,
   BarChart3,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,7 +44,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Insights",
-    items: [{ href: "/admin/reports", label: "Reports", icon: BarChart3 }],
+    items: [
+      { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+      { href: "/admin/notifications", label: "Notifications", icon: Bell },
+    ],
   },
 ];
 
