@@ -8,7 +8,7 @@ import { registerEmployee } from "@/server/actions/registration";
 import { subscribeToPush } from "@/lib/notifications/subscribe";
 import { FormSection, Field, Input, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { NumericKeypad } from "@/components/ui/numeric-keypad";
+import { NumericKeypad, NumericKeypadField, useSharedKeypad } from "@/components/ui/numeric-keypad";
 
 type Office = { id: string; name: string };
 type Step = "form" | "notifications" | "success";
@@ -30,6 +30,11 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const keypad = useSharedKeypad([
+    { value: phone, onChange: setPhone, maxLength: 10 },
+    { value: pin, onChange: setPin, maxLength: 4 },
+    { value: confirmPin, onChange: setConfirmPin, maxLength: 4 },
+  ]);
 
   function onFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -207,7 +212,14 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
             <p className="block text-sm font-medium text-foreground mb-1.5">
               Mobile number <span className="text-danger">*</span>
             </p>
-            <NumericKeypad value={phone} onChange={setPhone} maxLength={10} label="Mobile number" />
+            <NumericKeypadField
+              value={phone}
+              maxLength={10}
+              label="Mobile number"
+              active={keypad.activeIndex === 0}
+              onActivate={() => keypad.activate(0)}
+              onKeyDown={keypad.onKeyDownFor(0)}
+            />
             <p className="mt-1 text-xs text-muted text-center">10 digits, no country code</p>
           </div>
 
@@ -262,15 +274,39 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
               <p className="block text-sm font-medium text-foreground mb-1.5 text-center">
                 Choose a PIN <span className="text-danger">*</span>
               </p>
-              <NumericKeypad value={pin} onChange={setPin} maxLength={4} mask label="Choose a 4-digit PIN" />
+              <NumericKeypadField
+                value={pin}
+                maxLength={4}
+                mask
+                label="Choose a 4-digit PIN"
+                active={keypad.activeIndex === 1}
+                onActivate={() => keypad.activate(1)}
+                onKeyDown={keypad.onKeyDownFor(1)}
+              />
             </div>
             <div>
               <p className="block text-sm font-medium text-foreground mb-1.5 text-center">
                 Confirm PIN <span className="text-danger">*</span>
               </p>
-              <NumericKeypad value={confirmPin} onChange={setConfirmPin} maxLength={4} mask label="Confirm your PIN" />
+              <NumericKeypadField
+                value={confirmPin}
+                maxLength={4}
+                mask
+                label="Confirm your PIN"
+                active={keypad.activeIndex === 2}
+                onActivate={() => keypad.activate(2)}
+                onKeyDown={keypad.onKeyDownFor(2)}
+              />
             </div>
           </div>
+
+          <NumericKeypad
+            keypadRef={keypad.keypadRef}
+            onDigit={keypad.onDigit}
+            onBackspace={keypad.onBackspace}
+            activeLength={keypad.activeLength}
+            activeMaxLength={keypad.activeMaxLength}
+          />
         </FormSection>
 
         {error && <p role="alert" className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{error}</p>}

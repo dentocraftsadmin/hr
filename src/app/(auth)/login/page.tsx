@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, ShieldCheck, Clock, Users, Fingerprint } from "lucide-react";
 import { login } from "@/server/actions/auth";
-import { NumericKeypad } from "@/components/ui/numeric-keypad";
+import { NumericKeypad, NumericKeypadField, useSharedKeypad } from "@/components/ui/numeric-keypad";
 import { createClient } from "@/lib/supabase/client";
 import { hasQuickUnlockSession, tryQuickUnlockLogin, clearQuickUnlockSession } from "@/lib/webauthn/client";
 
@@ -19,6 +19,10 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const [quickUnlockAvailable, setQuickUnlockAvailable] = useState(false);
   const [quickUnlockMessage, setQuickUnlockMessage] = useState<string | null>(null);
+  const keypad = useSharedKeypad([
+    { value: phone, onChange: setPhone, maxLength: 10 },
+    { value: pin, onChange: setPin, maxLength: 4 },
+  ]);
 
   useEffect(() => {
     if (phone.length !== 10) return;
@@ -114,7 +118,14 @@ export default function LoginPage() {
           <form onSubmit={onSubmit} noValidate className="mt-6 space-y-5">
             <div>
               <p className="block text-sm font-medium text-foreground mb-1.5">Mobile number</p>
-              <NumericKeypad value={phone} onChange={setPhone} maxLength={10} label="Mobile number" />
+              <NumericKeypadField
+                value={phone}
+                maxLength={10}
+                label="Mobile number"
+                active={keypad.activeIndex === 0}
+                onActivate={() => keypad.activate(0)}
+                onKeyDown={keypad.onKeyDownFor(0)}
+              />
             </div>
 
             {quickUnlockAvailable && phone.length === 10 && (
@@ -146,8 +157,24 @@ export default function LoginPage() {
                   {showPin ? "Hide" : "Show"}
                 </button>
               </div>
-              <NumericKeypad value={pin} onChange={setPin} maxLength={4} mask={!showPin} label="4-digit PIN" />
+              <NumericKeypadField
+                value={pin}
+                maxLength={4}
+                mask={!showPin}
+                label="4-digit PIN"
+                active={keypad.activeIndex === 1}
+                onActivate={() => keypad.activate(1)}
+                onKeyDown={keypad.onKeyDownFor(1)}
+              />
             </div>
+
+            <NumericKeypad
+              keypadRef={keypad.keypadRef}
+              onDigit={keypad.onDigit}
+              onBackspace={keypad.onBackspace}
+              activeLength={keypad.activeLength}
+              activeMaxLength={keypad.activeMaxLength}
+            />
 
             {error && (
               <p role="alert" className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">
