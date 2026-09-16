@@ -29,7 +29,7 @@ export async function login(formData: FormData): Promise<LoginResult> {
     // Supabase returns the same generic error for "no such user" and "wrong
     // password" — deliberately not distinguished here either, so the login
     // screen can't be used to enumerate registered phone numbers.
-    return { ok: false, error: "Incorrect phone number or PIN." };
+    return { ok: false, error: "Incorrect mobile number or PIN." };
   }
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();

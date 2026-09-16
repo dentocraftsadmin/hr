@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { phoneSchema, pinSchema } from "./auth";
+import { formatPersonName } from "@/lib/format/name";
 
 export const createEmployeeSchema = z.object({
-  full_name: z.string().trim().min(1, "Name is required").max(150),
+  full_name: z.string().trim().min(1, "Name is required").max(150).transform(formatPersonName),
   phone: phoneSchema,
   pin: pinSchema,
   birth_year: z.coerce.number().int().min(1940).max(new Date().getFullYear()),
@@ -17,7 +18,7 @@ export const createEmployeeSchema = z.object({
 
 export const updateEmployeeSchema = z.object({
   id: z.uuid(),
-  full_name: z.string().trim().min(1, "Name is required").max(150),
+  full_name: z.string().trim().min(1, "Name is required").max(150).transform(formatPersonName),
   birth_year: z.coerce.number().int().min(1940).max(new Date().getFullYear()),
   department_id: z.uuid().optional().or(z.literal("")),
   designation_id: z.uuid().optional().or(z.literal("")),

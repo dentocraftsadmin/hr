@@ -1,0 +1,12 @@
+-- First-login guided tour for employees. One nullable timestamp: null means
+-- "never seen it" (shown automatically once), set means "seen it" (skipped
+-- or finished — both count, per product decision). Recurring "take the tour
+-- again" just re-shows the UI without touching this column.
+--
+-- Deliberately no RLS change: the 20260907130840 security-hardening
+-- migration restricted `employees` UPDATE to admin-only specifically
+-- because no self-service field existed yet, with a note to "reopen this
+-- narrowly" if one was ever added. This is that field, but it's opened via
+-- a narrow server action using the service role (see
+-- server/actions/tour.ts), not by restoring a blanket self-update policy.
+alter table employees add column tour_completed_at timestamptz;

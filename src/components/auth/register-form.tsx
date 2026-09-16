@@ -219,6 +219,7 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
               active={keypad.activeIndex === 0}
               onActivate={() => keypad.activate(0)}
               onKeyDown={keypad.onKeyDownFor(0)}
+              fieldRef={keypad.registerField(0)}
             />
             <p className="mt-1 text-xs text-muted text-center">10 digits, no country code</p>
           </div>
@@ -282,6 +283,7 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
                 active={keypad.activeIndex === 1}
                 onActivate={() => keypad.activate(1)}
                 onKeyDown={keypad.onKeyDownFor(1)}
+                fieldRef={keypad.registerField(1)}
               />
             </div>
             <div>
@@ -296,6 +298,7 @@ export function RegisterForm({ offices }: { offices: Office[] }) {
                 active={keypad.activeIndex === 2}
                 onActivate={() => keypad.activate(2)}
                 onKeyDown={keypad.onKeyDownFor(2)}
+                fieldRef={keypad.registerField(2)}
               />
             </div>
           </div>

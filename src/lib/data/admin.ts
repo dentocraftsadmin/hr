@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatPersonName } from "@/lib/format/name";
 
 export async function listDepartments() {
   const supabase = await createClient();
@@ -35,5 +36,8 @@ export async function listEmployees() {
        employee_offices(office:offices(id, name))`
     )
     .order("full_name");
-  return data ?? [];
+  // Defensive display-time normalization — every write path already stores
+  // names title-cased (see lib/format/name.ts), this just covers any row
+  // that predates that or was written outside the app.
+  return (data ?? []).map((e) => ({ ...e, full_name: formatPersonName(e.full_name) }));
 }

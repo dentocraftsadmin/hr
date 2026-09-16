@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Delete } from "lucide-react";
 
 /** A field a shared keypad can target. `onChange` always goes through the
@@ -17,11 +17,65 @@ export type KeypadFieldConfig = {
  * number + PIN) — exactly one grid is ever rendered per form; which field
  * it edits is just a piece of state here, never a second keypad instance.
  * Tapping/focusing a field's NumericKeypadField makes it active; the grid
- * always acts on whichever field is currently active. */
-export function useSharedKeypad(fields: KeypadFieldConfig[]) {
+ * always acts on whichever field is currently active.
+ *
+ * Also drives auto-progression: once the active field reaches its
+ * maxLength, focus moves to the next field automatically, or — only on the
+ * last field, and only if the caller passed onComplete — fires that
+ * callback (login uses this to auto-submit; forms with no next step, like
+ * registration's confirm-PIN, pass nothing and just stop there). This
+ * watches the field's actual committed value via an effect rather than
+ * guessing synchronously from inside onDigit, so it fires exactly once per
+ * real completion no matter how many redundant taps land in one batch —
+ * extra taps past maxLength are already no-ops on the value itself. */
+export function useSharedKeypad(fields: KeypadFieldConfig[], onComplete?: () => void) {
   const [activeIndex, setActiveIndex] = useState(0);
   const keypadRef = useRef<HTMLDivElement>(null);
   const active = fields[activeIndex];
+
+  // Real DOM focus for each field's display, so a physical-keyboard user
+  // who keeps typing right through a field boundary lands on the next
+  // field instead of silently hitting a maxed-out one — the logical
+  // activeIndex alone only tells the on-screen grid what to act on.
+  const fieldElsRef = useRef<(HTMLDivElement | null)[]>([]);
+  function registerField(index: number) {
+    return (el: HTMLDivElement | null) => {
+      fieldElsRef.current[index] = el;
+    };
+  }
+
+  // Which field index we've already auto-advanced/completed for, so a
+  // render that merely re-observes the same complete value (e.g. from an
+  // unrelated re-render) never re-fires it. Reset the moment that field's
+  // value drops back below maxLength (backspace, or a cleared PIN after a
+  // failed login), so a genuine retry can complete and fire again.
+  const advancedForRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (active.value.length < active.maxLength) {
+      if (advancedForRef.current === activeIndex) advancedForRef.current = null;
+      return;
+    }
+    if (advancedForRef.current === activeIndex) return;
+    advancedForRef.current = activeIndex;
+    if (activeIndex < fields.length - 1) {
+      // Focusing the next field runs synchronously and fires its own
+      // onFocus -> activate() handler immediately, in this same tick — so a
+      // physical-keyboard user typing straight through a field boundary
+      // never gets a keystroke lost to the now-full previous field. The
+      // deferred setActiveIndex below is just a safety net for the
+      // (unexpected) case a field never registered a fieldRef; when the
+      // focus call above already fired activate(), this is a same-value
+      // no-op. Deferring the setState call itself (not the focus/scroll,
+      // which are plain DOM effects) is what keeps this out of the
+      // effect's own synchronous body.
+      fieldElsRef.current[activeIndex + 1]?.focus();
+      keypadRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      Promise.resolve().then(() => setActiveIndex(activeIndex + 1));
+    } else {
+      onComplete?.();
+    }
+  }, [active.value, active.maxLength, activeIndex, fields.length, onComplete]);
 
   /** Switches the active field. The keypad grid never moves in the DOM —
    * only this index changes — so it can't create, duplicate, hide, or
@@ -29,6 +83,7 @@ export function useSharedKeypad(fields: KeypadFieldConfig[]) {
    * element visible when the newly active field is far away on screen. */
   function activate(index: number) {
     setActiveIndex(index);
+    fieldElsRef.current[index]?.focus();
     keypadRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -63,6 +118,7 @@ export function useSharedKeypad(fields: KeypadFieldConfig[]) {
     onDigit,
     onBackspace,
     onKeyDownFor,
+    registerField,
     keypadRef,
     activeLength: active.value.length,
     activeMaxLength: active.maxLength,
@@ -82,6 +138,7 @@ export function NumericKeypadField({
   onActivate,
   onKeyDown,
   disabled = false,
+  fieldRef,
 }: {
   value: string;
   maxLength: number;
@@ -94,9 +151,15 @@ export function NumericKeypadField({
   onActivate: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   disabled?: boolean;
+  /** From useSharedKeypad's registerField(index) — lets auto-advance move
+   * real DOM focus here, not just the logical active index, so a physical
+   * keyboard user typing straight through a field boundary lands correctly
+   * on the next field instead of hitting a maxed-out one. */
+  fieldRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
     <div
+      ref={fieldRef}
       tabIndex={0}
       role="group"
       aria-label={label}

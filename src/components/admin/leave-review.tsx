@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { reviewLeaveRequest } from "@/server/actions/leave";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card } from "@/components/ui/card";
+import { formatPersonName } from "@/lib/format/name";
 
 type Request = {
   id: string;
@@ -56,7 +57,7 @@ function ReviewRow({ request }: { request: Request }) {
 
   return (
     <li className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-      <p className="font-medium text-foreground">{employee?.full_name ?? "—"}</p>
+      <p className="font-medium text-foreground">{employee ? formatPersonName(employee.full_name) : "—"}</p>
       <p className="text-sm text-muted">
         {type?.name ?? "Leave"} · {request.from_date}
         {request.to_date !== request.from_date ? ` – ${request.to_date}` : ""}

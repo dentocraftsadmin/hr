@@ -21,7 +21,11 @@ export async function requireAdmin() {
     .single();
 
   if (profile?.role !== "admin") {
-    return { ok: false as const, error: "Not authorized." };
+    // The common real cause here is a session that expired mid-action, not
+    // an actual permission attack — the UI never offers this action to a
+    // non-admin in the first place, so a stale/expired session is the far
+    // more likely explanation when it fires.
+    return { ok: false as const, error: "Your session may have expired — sign in again to continue." };
   }
 
   return { ok: true as const, supabase, authId: user.id };

@@ -67,7 +67,7 @@ export function QuickUnlockCard({ phone }: { phone: string }) {
   if (dismissed && !hasCredential) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div data-tour="profile" className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div className="rounded-lg bg-primary-soft p-2">

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatPersonName } from "@/lib/format/name";
 
 export type CurrentUser = {
   authId: string;
@@ -11,6 +12,7 @@ export type CurrentUser = {
     designation_id: string | null;
     shift_id: string | null;
     employment_status: string;
+    tour_completed_at: string | null;
   } | null;
 };
 
@@ -25,7 +27,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "role, employee:employees(id, full_name, phone, department_id, designation_id, shift_id, employment_status)"
+      "role, employee:employees(id, full_name, phone, department_id, designation_id, shift_id, employment_status, tour_completed_at)"
     )
     .eq("id", user.id)
     .single();
@@ -39,6 +41,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return {
     authId: user.id,
     role: profile.role,
-    employee,
+    employee: employee ? { ...employee, full_name: formatPersonName(employee.full_name) } : null,
   };
 }

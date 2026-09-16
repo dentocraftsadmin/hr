@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LocationMapLink } from "@/components/shared/location-map-link";
 
 type Shift = { id: string; name: string };
 type Office = {
@@ -167,6 +168,9 @@ export function OfficeManager({ offices }: { offices: Office[] }) {
               <p className="mt-2 text-xs text-muted-soft tabular-nums">
                 {office.latitude.toFixed(4)}, {office.longitude.toFixed(4)} · {office.radius_meters}m radius
               </p>
+              <div className="mt-1.5">
+                <LocationMapLink latitude={office.latitude} longitude={office.longitude} label="Verify location" />
+              </div>
               <button
                 onClick={() => onToggle(office.id)}
                 className="mt-3 text-xs font-medium text-primary-strong hover:underline"

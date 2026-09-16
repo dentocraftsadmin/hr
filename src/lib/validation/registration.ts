@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { phoneSchema, pinSchema } from "./auth";
 import { pushSubscriptionSchema } from "./notifications";
+import { formatPersonName } from "@/lib/format/name";
 
 /** Employee self-registration. Deliberately has no role field anywhere in
  * this schema — the server action that consumes it hardcodes
@@ -14,7 +15,7 @@ import { pushSubscriptionSchema } from "./notifications";
  * regardless of what the client did or didn't show. */
 export const registerEmployeeSchema = z
   .object({
-    full_name: z.string().trim().min(1, "Name is required").max(150),
+    full_name: z.string().trim().min(1, "Name is required").max(150).transform(formatPersonName),
     phone: phoneSchema,
     enrollment_code: z.string().trim().min(1, "Enter the company registration code"),
     birth_year: z.coerce.number().int().min(1940).max(new Date().getFullYear()),

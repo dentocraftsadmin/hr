@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatPersonName } from "@/lib/format/name";
 
 export type AudienceInput =
   | { type: "everyone" }
@@ -27,7 +28,7 @@ export async function resolveAudience(input: AudienceInput): Promise<AudienceMem
       .select("id, full_name")
       .eq("employment_status", "active")
       .eq("id", input.employeeId);
-    return data ?? [];
+    return (data ?? []).map((e) => ({ ...e, full_name: formatPersonName(e.full_name) }));
   }
 
   const { data } = await admin
@@ -45,7 +46,7 @@ export async function resolveAudience(input: AudienceInput): Promise<AudienceMem
     rows = rows.filter((e) => (e.employee_offices ?? []).some((o) => o.office_id === officeId));
   }
 
-  return rows.map((e) => ({ id: e.id, full_name: e.full_name }));
+  return rows.map((e) => ({ id: e.id, full_name: formatPersonName(e.full_name) }));
 }
 
 export function describeAudience(

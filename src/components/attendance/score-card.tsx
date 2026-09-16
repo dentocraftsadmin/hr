@@ -15,7 +15,7 @@ function scoreColor(score: number): string {
 
 export function ScoreCard({ score, history }: { score: number; history: Entry[] }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div data-tour="score" className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="font-medium text-foreground">Compliance score</h2>
         <span className={`text-2xl font-semibold ${scoreColor(score)}`}>{score}</span>

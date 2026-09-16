@@ -17,6 +17,7 @@ export async function GET() {
       { header: "Address", key: "address", width: 30 },
       { header: "Latitude", key: "latitude", width: 12 },
       { header: "Longitude", key: "longitude", width: 12 },
+      { header: "Map", key: "map", width: 14 },
       { header: "Radius (m)", key: "radiusMeters", width: 12 },
       { header: "Default Shift", key: "defaultShift", width: 16 },
       { header: "Active", key: "active", width: 10 },

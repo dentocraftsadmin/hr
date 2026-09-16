@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatPersonName } from "@/lib/format/name";
 import { listDepartments, listOffices } from "@/lib/data/admin";
 import { listEmployeeNotificationStatuses } from "@/lib/data/notification-status";
 import { listNotificationHistory } from "@/server/actions/notification-broadcasts";
@@ -19,7 +20,7 @@ export default async function AdminNotificationsPage() {
 
   const employees = (employeeRows ?? []).map((e) => ({
     id: e.id,
-    name: e.full_name,
+    name: formatPersonName(e.full_name),
     department_id: e.department_id,
     status: statuses[e.id] ?? ("not_enabled" as const),
   }));

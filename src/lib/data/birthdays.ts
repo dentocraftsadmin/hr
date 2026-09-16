@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatPersonName } from "@/lib/format/name";
 
 export type UpcomingBirthday = {
   employeeId: string;
@@ -49,7 +50,7 @@ export async function getUpcomingBirthdays(): Promise<UpcomingBirthday[]> {
   return (data ?? [])
     .map((e) => ({
       employeeId: e.id as string,
-      fullName: e.full_name as string,
+      fullName: formatPersonName(e.full_name as string),
       month: e.birth_month as number,
       day: e.birth_day as number,
       daysUntil: daysUntilNextOccurrence(e.birth_month as number, e.birth_day as number, todayUTC),

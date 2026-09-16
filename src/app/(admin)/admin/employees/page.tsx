@@ -36,7 +36,7 @@ export default async function EmployeesPage() {
       />
 
       <div className="mb-6 max-w-md">
-        <EnrollmentCodeCard initialCode={code} />
+        <EnrollmentCodeCard initialCode={code} hasActiveOffice={activeOffices.length > 0} />
       </div>
 
       <EmployeeTable

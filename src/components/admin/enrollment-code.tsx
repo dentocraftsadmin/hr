@@ -7,7 +7,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null }) {
+export function EnrollmentCodeCard({
+  initialCode,
+  hasActiveOffice,
+}: {
+  initialCode: string | null;
+  /** Registration also requires at least one active office for a new
+   * employee to select — without it, /register stays closed to real
+   * visitors no matter what this card shows, so the badge must reflect
+   * both conditions rather than just whether a code is set. */
+  hasActiveOffice: boolean;
+}) {
   const [code, setCode] = useState(initialCode);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
@@ -74,7 +84,9 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
             <p className="text-xs text-muted">Share this code so employees can create their own account</p>
           </div>
         </div>
-        <Badge tone={code ? "success" : "neutral"}>{code ? "Open" : "Closed"}</Badge>
+        <Badge tone={code ? (hasActiveOffice ? "success" : "warning") : "neutral"}>
+          {code ? (hasActiveOffice ? "Open" : "Code set, no office yet") : "Closed"}
+        </Badge>
       </div>
 
       <div className="mt-3 flex items-center gap-2">
@@ -95,6 +107,13 @@ export function EnrollmentCodeCard({ initialCode }: { initialCode: string | null
           <p className="flex-1 text-sm text-muted">No code set — registration is closed.</p>
         )}
       </div>
+
+      {code && !hasActiveOffice && (
+        <p className="mt-2 text-xs text-warning">
+          This code won&rsquo;t actually let anyone register yet — add at least one active office in Admin →
+          Offices first.
+        </p>
+      )}
 
       {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
 

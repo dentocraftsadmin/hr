@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatPersonName } from "@/lib/format/name";
 
 /** Score is always computed from the ledger, never a stored running total —
  * see CLAUDE.md. Clamped to [0, 100], starting from a baseline of 100. */
@@ -40,7 +41,7 @@ export async function listEmployeeScores(): Promise<EmployeeScore[]> {
 
   return (employees ?? []).map((e) => ({
     id: e.id,
-    full_name: e.full_name,
+    full_name: formatPersonName(e.full_name),
     score: scoreFromPoints(totals.get(e.id) ?? 0),
   }));
 }

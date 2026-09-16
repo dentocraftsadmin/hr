@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { correctAttendanceDay } from "@/server/actions/attendance-corrections";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LocationMapLink } from "@/components/shared/location-map-link";
+import { formatPersonName } from "@/lib/format/name";
+
+type LocationEvent = { latitude: number; longitude: number } | { latitude: number; longitude: number }[] | null;
 
 type Row = {
   id: string;
@@ -11,6 +15,8 @@ type Row = {
   day_type: string;
   hours_worked: number | null;
   employee: { full_name: string } | { full_name: string }[] | null;
+  punch_in?: LocationEvent;
+  punch_out?: LocationEvent;
 };
 
 function one<T>(v: T | T[] | null): T | null {
@@ -45,6 +51,8 @@ function FlaggedRow({ row }: { row: Row }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const employee = one(row.employee);
+  const punchIn = one(row.punch_in ?? null);
+  const punchOut = one(row.punch_out ?? null);
 
   function submit() {
     setError(null);
@@ -62,9 +70,17 @@ function FlaggedRow({ row }: { row: Row }) {
   return (
     <li className="rounded-lg border border-border bg-surface p-3">
       <p className="text-sm font-medium text-foreground">
-        {employee?.full_name ?? "—"} · {row.date}
+        {employee ? formatPersonName(employee.full_name) : "—"} · {row.date}
       </p>
       <p className="text-xs text-muted">Currently: {row.day_type.replace("_", " ")}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          Punch in: <LocationMapLink latitude={punchIn?.latitude} longitude={punchIn?.longitude} label="Verify" />
+        </span>
+        <span className="flex items-center gap-1.5">
+          Punch out: <LocationMapLink latitude={punchOut?.latitude} longitude={punchOut?.longitude} label="Verify" />
+        </span>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <select
           value={dayType}

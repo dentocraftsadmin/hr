@@ -1,4 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { googleMapsUrl } from "@/lib/location/maps-url";
+import { formatPersonName } from "@/lib/format/name";
+
+/** An exceljs cell value: a real hyperlink when coordinates exist, plain
+ * text otherwise — never a link that would open the wrong place. */
+function mapCell(latitude: number | null | undefined, longitude: number | null | undefined) {
+  if (latitude == null || longitude == null) return "Location unavailable";
+  return { text: "View on Map", hyperlink: googleMapsUrl(latitude, longitude) };
+}
 
 export type ExportFilters = {
   from?: string;
@@ -25,7 +34,7 @@ export async function fetchEmployeesForExport(supabase: SupabaseClient, filters:
   const { data } = await query;
 
   return (data ?? []).map((e) => ({
-    name: e.full_name,
+    name: formatPersonName(e.full_name),
     phone: e.phone,
     birthYear: e.birth_year,
     department: one(e.department)?.name ?? "",
@@ -45,8 +54,8 @@ export async function fetchAttendanceForExport(supabase: SupabaseClient, filters
       `date, day_type, is_late, hours_worked, location_status,
        employee:employees(full_name, department_id),
        office:offices(name), shift:shifts(name),
-       punch_in:attendance_events!attendance_days_punch_in_event_id_fkey(server_recorded_at),
-       punch_out:attendance_events!attendance_days_punch_out_event_id_fkey(server_recorded_at)`
+       punch_in:attendance_events!attendance_days_punch_in_event_id_fkey(server_recorded_at, latitude, longitude),
+       punch_out:attendance_events!attendance_days_punch_out_event_id_fkey(server_recorded_at, latitude, longitude)`
     )
     .order("date", { ascending: false });
 
@@ -59,18 +68,24 @@ export async function fetchAttendanceForExport(supabase: SupabaseClient, filters
   const { data } = await query;
   return (data ?? [])
     .filter((d) => !filters.departmentId || one(d.employee)?.department_id === filters.departmentId)
-    .map((d) => ({
-      employee: one(d.employee)?.full_name ?? "",
-      date: d.date,
-      punchIn: one(d.punch_in)?.server_recorded_at ?? "",
-      punchOut: one(d.punch_out)?.server_recorded_at ?? "",
-      hoursWorked: d.hours_worked ?? "",
-      dayType: d.day_type,
-      late: d.is_late ? "Yes" : "No",
-      locationStatus: d.location_status,
-      office: one(d.office)?.name ?? "",
-      shift: one(d.shift)?.name ?? "",
-    }));
+    .map((d) => {
+      const punchIn = one(d.punch_in);
+      const punchOut = one(d.punch_out);
+      return {
+        employee: formatPersonName(one(d.employee)?.full_name ?? ""),
+        date: d.date,
+        punchIn: punchIn?.server_recorded_at ?? "",
+        punchInMap: mapCell(punchIn?.latitude, punchIn?.longitude),
+        punchOut: punchOut?.server_recorded_at ?? "",
+        punchOutMap: mapCell(punchOut?.latitude, punchOut?.longitude),
+        hoursWorked: d.hours_worked ?? "",
+        dayType: d.day_type,
+        late: d.is_late ? "Yes" : "No",
+        locationStatus: d.location_status,
+        office: one(d.office)?.name ?? "",
+        shift: one(d.shift)?.name ?? "",
+      };
+    });
 }
 
 export async function fetchPointsForExport(supabase: SupabaseClient, filters: ExportFilters) {
@@ -84,7 +99,7 @@ export async function fetchPointsForExport(supabase: SupabaseClient, filters: Ex
 
   const { data } = await query;
   return (data ?? []).map((p) => ({
-    employee: one(p.employee)?.full_name ?? "",
+    employee: formatPersonName(one(p.employee)?.full_name ?? ""),
     date: p.created_at,
     points: p.points,
     rule: one(p.point_rule)?.code ?? (p.is_override ? "MANUAL_ADJUSTMENT" : ""),
@@ -107,7 +122,7 @@ export async function fetchLeaveForExport(supabase: SupabaseClient, filters: Exp
 
   const { data } = await query;
   return (data ?? []).map((l) => ({
-    employee: one(l.employee)?.full_name ?? "",
+    employee: formatPersonName(one(l.employee)?.full_name ?? ""),
     leaveType: one(l.leave_type)?.name ?? "",
     fromDate: l.from_date,
     toDate: l.to_date,
@@ -144,6 +159,7 @@ export async function fetchOfficesForExport(supabase: SupabaseClient) {
     address: o.address ?? "",
     latitude: o.latitude,
     longitude: o.longitude,
+    map: mapCell(o.latitude, o.longitude),
     radiusMeters: o.radius_meters,
     defaultShift: one(o.default_shift)?.name ?? "",
     active: o.is_active ? "Yes" : "No",

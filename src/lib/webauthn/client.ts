@@ -9,6 +9,30 @@ import {
 const DB_NAME = "craftshr-quick-unlock";
 const STORE_NAME = "sessions";
 
+/** Translates the raw DOMException a browser's WebAuthn API throws into
+ * something an employee can actually act on — the raw messages are written
+ * for developers (one observed in testing cited a W3C spec URL) and never
+ * distinguish "you cancelled" from "this device has no fingerprint/face/PIN
+ * lock set up" from "this browser doesn't support it at all". */
+function friendlyWebAuthnError(e: unknown, context: "setup" | "login"): string {
+  const name = e instanceof DOMException ? e.name : null;
+  switch (name) {
+    case "NotAllowedError":
+      return context === "setup"
+        ? "Setup was cancelled, or this device doesn't have a fingerprint, face, or PIN lock available."
+        : "Quick unlock was cancelled or didn't complete in time — try again, or sign in with your PIN.";
+    case "InvalidStateError":
+      return "This device is already set up for quick unlock.";
+    case "NotSupportedError":
+    case "SecurityError":
+      return "This device or browser doesn't support quick unlock.";
+    default:
+      return context === "setup"
+        ? "Couldn't set up quick unlock on this device. You can still sign in with your PIN."
+        : "Quick unlock didn't work on this device. Sign in with your PIN instead.";
+  }
+}
+
 /**
  * Quick unlock does not mint a new server session from a biometric check —
  * Supabase Auth has no such thing. Instead: the device's own refresh token
@@ -86,7 +110,7 @@ export async function setUpQuickUnlock(phone: string, refreshToken: string): Pro
   try {
     attestation = await startRegistration({ optionsJSON: optionsResult.options });
   } catch (e) {
-    return { ok: false, reason: "error", message: e instanceof Error ? e.message : "Setup was cancelled." };
+    return { ok: false, reason: "error", message: friendlyWebAuthnError(e, "setup") };
   }
 
   const verifyResult = await verifyQuickUnlockRegistration(attestation);
@@ -117,7 +141,7 @@ export async function tryQuickUnlockLogin(phone: string): Promise<QuickUnlockLog
   try {
     assertion = await startAuthentication({ optionsJSON: optionsResult.options });
   } catch (e) {
-    return { ok: false, reason: "cancelled", message: e instanceof Error ? e.message : "Quick unlock was cancelled." };
+    return { ok: false, reason: "cancelled", message: friendlyWebAuthnError(e, "login") };
   }
 
   const verifyResult = await verifyQuickUnlockAuthentication(assertion);

@@ -49,7 +49,7 @@ export function NotificationSettings({ preferences }: { preferences: Preferences
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div data-tour="notifications" className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-medium text-foreground">Reminders</h2>

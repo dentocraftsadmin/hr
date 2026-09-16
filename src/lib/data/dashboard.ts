@@ -50,7 +50,11 @@ export async function listFlaggedAttendanceDays() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("attendance_days")
-    .select("*, employee:employees(full_name)")
+    .select(
+      `*, employee:employees(full_name),
+       punch_in:attendance_events!attendance_days_punch_in_event_id_fkey(latitude, longitude),
+       punch_out:attendance_events!attendance_days_punch_out_event_id_fkey(latitude, longitude)`
+    )
     .eq("is_flagged", true)
     .order("date", { ascending: false })
     .limit(30);

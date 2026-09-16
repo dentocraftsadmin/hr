@@ -65,7 +65,19 @@ export const EmployeeCreateDialog = forwardRef<
             <Input id="full_name" name="full_name" required placeholder="Jane Doe" />
           </Field>
           <Field label="Mobile number" htmlFor="phone" required description="10 digits, no country code">
-            <Input id="phone" name="phone" required inputMode="numeric" maxLength={10} placeholder="9876543210" />
+            <Input
+              id="phone"
+              name="phone"
+              required
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="9876543210"
+              onChange={(e) => {
+                if (e.target.value.length !== 10) return;
+                const pinInput = formRef.current?.elements.namedItem("pin") as HTMLInputElement | null;
+                pinInput?.focus();
+              }}
+            />
           </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Birth month" htmlFor="birth_month" required>
@@ -120,12 +132,18 @@ export const EmployeeCreateDialog = forwardRef<
         <FormSection title="Work assignment">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Office" htmlFor="office_id" required>
-              <Select id="office_id" name="office_id" required value={officeId} onChange={(e) => onOfficeChange(e.target.value)}>
-                <option value="">Select office</option>
-                {offices.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </Select>
+              {offices.length === 0 ? (
+                <p className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">
+                  No active offices yet — add one in Admin → Offices before creating employees.
+                </p>
+              ) : (
+                <Select id="office_id" name="office_id" required value={officeId} onChange={(e) => onOfficeChange(e.target.value)}>
+                  <option value="">Select office</option>
+                  {offices.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </Select>
+              )}
             </Field>
             <Field
               label="Shift"
@@ -159,7 +177,7 @@ export const EmployeeCreateDialog = forwardRef<
           <Button type="button" variant="secondary" onClick={() => dialogRef.current?.close()}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || offices.length === 0}>
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Create employee
           </Button>

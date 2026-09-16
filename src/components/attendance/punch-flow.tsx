@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { submitPunch, type PunchResult } from "@/server/actions/attendance";
+import { LocationMapLink } from "@/components/shared/location-map-link";
 
 type Step =
   | "idle"
@@ -179,12 +180,16 @@ export function PunchFlow({
   }
 
   if (disabled) {
-    return <p className="text-sm text-muted rounded-lg bg-background border border-border px-4 py-3">{disabledReason}</p>;
+    return (
+      <p data-tour="punch" className="text-sm text-muted rounded-lg bg-background border border-border px-4 py-3">
+        {disabledReason}
+      </p>
+    );
   }
 
   if (step === "done" && result) {
     return (
-      <div className="rounded-lg border border-border bg-primary-soft px-4 py-3 text-sm text-primary-strong">
+      <div data-tour="punch" className="rounded-lg border border-border bg-primary-soft px-4 py-3 text-sm text-primary-strong">
         <p className="font-medium">
           Punched {punchType} — {result.locationStatus === "at_office" ? "At office" : "Away from office"}
           {result.officeName ? ` (${result.officeName})` : ""}
@@ -195,12 +200,20 @@ export function PunchFlow({
             {result.hoursWorked.toFixed(2)} hours worked · {result.dayType.replace("_", " ")}
           </p>
         )}
+        <div className="mt-2">
+          {/* Exactly the coordinates just submitted for this punch — never
+              a fresh navigator.geolocation read — so this always points at
+              where the punch was actually recorded, not wherever the
+              employee is standing by the time they see this screen. */}
+          <LocationMapLink latitude={position?.latitude} longitude={position?.longitude} />
+        </div>
+        <p className="mt-1 text-xs text-primary-strong/70">Location recorded by CraftsHR for this punch.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div data-tour="punch" className="rounded-lg border border-border bg-surface p-4">
       {step === "idle" && (
         <button
           onClick={start}

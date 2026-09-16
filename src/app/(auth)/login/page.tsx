@@ -19,10 +19,13 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const [quickUnlockAvailable, setQuickUnlockAvailable] = useState(false);
   const [quickUnlockMessage, setQuickUnlockMessage] = useState<string | null>(null);
-  const keypad = useSharedKeypad([
-    { value: phone, onChange: setPhone, maxLength: 10 },
-    { value: pin, onChange: setPin, maxLength: 4 },
-  ]);
+  const keypad = useSharedKeypad(
+    [
+      { value: phone, onChange: setPhone, maxLength: 10 },
+      { value: pin, onChange: setPin, maxLength: 4 },
+    ],
+    () => performLogin()
+  );
 
   useEffect(() => {
     if (phone.length !== 10) return;
@@ -35,8 +38,12 @@ export default function LoginPage() {
     };
   }, [phone]);
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  /** Shared by the form's own submit (Enter/button) and the keypad's
+   * auto-submit once the 4th PIN digit lands — isPending itself is the
+   * duplicate-submission guard, so a race between the two (or two rapid
+   * auto-submit firings) can only ever start one real login attempt. */
+  function performLogin() {
+    if (isPending || phone.length !== 10 || pin.length !== 4) return;
     setError(null);
     const formData = new FormData();
     formData.set("phone", phone);
@@ -45,6 +52,11 @@ export default function LoginPage() {
       const result = await login(formData);
       if (!result.ok) {
         setError(result.error);
+        // Never reveal which credential was wrong. Keep the mobile number
+        // so the user doesn't have to retype it; clear only the PIN and
+        // send focus straight back to it so retrying is obvious.
+        setPin("");
+        keypad.activate(1);
         return;
       }
       // router.replace() already performs a full fresh server fetch for a
@@ -52,6 +64,11 @@ export default function LoginPage() {
       // router.refresh() here only re-fetches the same data a second time.
       router.replace(result.role === "admin" ? "/admin" : "/dashboard");
     });
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    performLogin();
   }
 
   function onUseQuickUnlock() {
@@ -125,6 +142,7 @@ export default function LoginPage() {
                 active={keypad.activeIndex === 0}
                 onActivate={() => keypad.activate(0)}
                 onKeyDown={keypad.onKeyDownFor(0)}
+                fieldRef={keypad.registerField(0)}
               />
             </div>
 
@@ -165,6 +183,7 @@ export default function LoginPage() {
                 active={keypad.activeIndex === 1}
                 onActivate={() => keypad.activate(1)}
                 onKeyDown={keypad.onKeyDownFor(1)}
+                fieldRef={keypad.registerField(1)}
               />
             </div>
 

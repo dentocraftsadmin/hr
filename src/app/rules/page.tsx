@@ -48,6 +48,14 @@ export default async function RulesPage() {
           <p className="mt-1 text-sm text-muted">
             How CraftsHR works, in plain language — how attendance and leave are scored, and why.
           </p>
+          {user.role !== "admin" && (
+            <Link
+              href="/dashboard?tour=1"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary-strong hover:underline"
+            >
+              Take the tour again
+            </Link>
+          )}
         </div>
 
         <Section id="attendance" icon={Clock} title="Attendance">
